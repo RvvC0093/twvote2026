@@ -1,0 +1,2749 @@
+{
+  "version": "v57",
+  "generated_as_of": "2026-10-16",
+  "counties": [
+    {
+      "county": "屏東縣",
+      "band": "close_only",
+      "label": "傳統激戰",
+      "margin_2022_pct": 1.63,
+      "margin_2022_votes": 11077,
+      "electorate_2022": 679330,
+      "winner_2022": {
+        "name": "周春米",
+        "party": "民主進步黨"
+      },
+      "turnover_count": 0,
+      "is_swing": false,
+      "cands_2026_count": 2,
+      "candidates_2026": [
+        {
+          "name": "蘇清泉",
+          "name_status": "readable",
+          "party": "中國國民黨",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        },
+        {
+          "name": "周春米",
+          "name_status": "readable",
+          "party": "民主進步黨",
+          "registered_on": "2026-09-03",
+          "source_page": 1
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "潘孟安",
+            "party": "民主進步黨",
+            "votes": 308953,
+            "rate": null
+          },
+          {
+            "name": "簡太郎",
+            "party": "中國國民黨",
+            "votes": 182027,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "潘孟安",
+            "party": "民主進步黨",
+            "votes": 262809,
+            "rate": null
+          },
+          {
+            "name": "蘇清泉",
+            "party": "中國國民黨",
+            "votes": 197518,
+            "rate": null
+          },
+          {
+            "name": "李鎔任",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 9819,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "周春米",
+            "party": "民主進步黨",
+            "votes": 217537,
+            "rate": null
+          },
+          {
+            "name": "蘇清泉",
+            "party": "中國國民黨",
+            "votes": 206460,
+            "rate": null
+          },
+          {
+            "name": "詹智鈞",
+            "party": "時代力量",
+            "votes": 19156,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "澎湖縣",
+      "band": "close_swing",
+      "label": "核心激戰",
+      "margin_2022_pct": 1.88,
+      "margin_2022_votes": 1696,
+      "electorate_2022": 90360,
+      "winner_2022": {
+        "name": "陳光復",
+        "party": "民主進步黨"
+      },
+      "turnover_count": 2,
+      "is_swing": true,
+      "cands_2026_count": 6,
+      "candidates_2026": [
+        {
+          "name": "吳淑瑾",
+          "name_status": "readable",
+          "party": "民主進步黨",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        },
+        {
+          "name": "陳振中",
+          "name_status": "readable",
+          "party": "中國國民黨",
+          "registered_on": "2026-09-03",
+          "source_page": 1
+        },
+        {
+          "name": "周倪安",
+          "name_status": "readable",
+          "party": "台聯黨",
+          "registered_on": "2026-09-03",
+          "source_page": 1
+        },
+        {
+          "name": "許智富",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-03",
+          "source_page": 1
+        },
+        {
+          "name": "陳盡川",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-03",
+          "source_page": 1
+        },
+        {
+          "name": "葉竹林",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-04",
+          "source_page": 1
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "陳光復",
+            "party": "民主進步黨",
+            "votes": 29164,
+            "rate": null
+          },
+          {
+            "name": "蘇崑雄",
+            "party": "中國國民黨",
+            "votes": 23533,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "賴峰偉",
+            "party": "中國國民黨",
+            "votes": 20570,
+            "rate": null
+          },
+          {
+            "name": "陳光復",
+            "party": "民主進步黨",
+            "votes": 17347,
+            "rate": null
+          },
+          {
+            "name": "陳大松",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 5822,
+            "rate": null
+          },
+          {
+            "name": "鄭清發",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 4330,
+            "rate": null
+          },
+          {
+            "name": "吳政隆",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 2999,
+            "rate": null
+          },
+          {
+            "name": "翁珍聖",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 1379,
+            "rate": null
+          },
+          {
+            "name": "呂華苑",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 468,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "陳光復",
+            "party": "民主進步黨",
+            "votes": 18777,
+            "rate": null
+          },
+          {
+            "name": "賴峰偉",
+            "party": "中國國民黨",
+            "votes": 17081,
+            "rate": null
+          },
+          {
+            "name": "葉竹林",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 15384,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "臺南市",
+      "band": "close_only",
+      "label": "傳統激戰",
+      "margin_2022_pct": 2.97,
+      "margin_2022_votes": 45953,
+      "electorate_2022": 1548203,
+      "winner_2022": {
+        "name": "黃偉哲",
+        "party": "民主進步黨"
+      },
+      "turnover_count": 0,
+      "is_swing": false,
+      "cands_2026_count": 4,
+      "candidates_2026": [
+        {
+          "name": "謝龍介",
+          "name_status": "readable",
+          "party": "中國國民黨",
+          "registered_on": "2026-09-01",
+          "source_page": 1
+        },
+        {
+          "name": "蕭燐洪",
+          "name_status": "readable",
+          "party": "臺灣SoR無法黨",
+          "registered_on": "2026-09-01",
+          "source_page": 1
+        },
+        {
+          "name": "葉人文",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        },
+        {
+          "name": "陳亭妃",
+          "name_status": "readable",
+          "party": "民主進步黨",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "賴清德",
+            "party": "民主進步黨",
+            "votes": 711557,
+            "rate": null
+          },
+          {
+            "name": "黃秀霜",
+            "party": "中國國民黨",
+            "votes": 264536,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "黃偉哲",
+            "party": "民主進步黨",
+            "votes": 367518,
+            "rate": null
+          },
+          {
+            "name": "高思博",
+            "party": "中國國民黨",
+            "votes": 312874,
+            "rate": null
+          },
+          {
+            "name": "陳永和",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 117179,
+            "rate": null
+          },
+          {
+            "name": "林義豐",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 84153,
+            "rate": null
+          },
+          {
+            "name": "許忠信",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 45168,
+            "rate": null
+          },
+          {
+            "name": "蘇煥智",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 39778,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "黃偉哲",
+            "party": "民主進步黨",
+            "votes": 433684,
+            "rate": null
+          },
+          {
+            "name": "謝龍介",
+            "party": "中國國民黨",
+            "votes": 387731,
+            "rate": null
+          },
+          {
+            "name": "許忠信",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 38697,
+            "rate": null
+          },
+          {
+            "name": "林義豐",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 24606,
+            "rate": null
+          },
+          {
+            "name": "吳炳輝",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 3956,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "金門縣",
+      "band": "swing_only",
+      "label": "一般搖擺",
+      "margin_2022_pct": 3.2,
+      "margin_2022_votes": 3908,
+      "electorate_2022": 122294,
+      "winner_2022": {
+        "name": "陳福海",
+        "party": "無黨籍及未經政黨推薦"
+      },
+      "turnover_count": 2,
+      "is_swing": true,
+      "cands_2026_count": 7,
+      "candidates_2026": [
+        {
+          "name": "洪和成",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-08-31",
+          "source_page": 1
+        },
+        {
+          "name": "李文良",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        },
+        {
+          "name": "黃世團",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        },
+        {
+          "name": "陳玉珍",
+          "name_status": "readable",
+          "party": "中國國民黨",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        },
+        {
+          "name": "張國威",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        },
+        {
+          "name": "梁文韜",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-03",
+          "source_page": 2
+        },
+        {
+          "name": "張火木",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-04",
+          "source_page": 2
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "陳福海",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 23965,
+            "rate": null
+          },
+          {
+            "name": "李沃士",
+            "party": "中國國民黨",
+            "votes": 15146,
+            "rate": null
+          },
+          {
+            "name": "許乃權",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 3834,
+            "rate": null
+          },
+          {
+            "name": "洪志恒",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 636,
+            "rate": null
+          },
+          {
+            "name": "蘇龍科",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 470,
+            "rate": null
+          },
+          {
+            "name": "汪成華",
+            "party": "教科文預算保障e聯盟",
+            "votes": 403,
+            "rate": null
+          },
+          {
+            "name": "楊榮祥",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 354,
+            "rate": null
+          },
+          {
+            "name": "林水泉",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 240,
+            "rate": null
+          },
+          {
+            "name": "莊育民",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 236,
+            "rate": null
+          },
+          {
+            "name": "雷由靖",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 132,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "楊鎮浯",
+            "party": "中國國民黨",
+            "votes": 23520,
+            "rate": null
+          },
+          {
+            "name": "陳福海",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 22719,
+            "rate": null
+          },
+          {
+            "name": "謝宜璋",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 1389,
+            "rate": null
+          },
+          {
+            "name": "洪志恒",
+            "party": "金門高粱黨",
+            "votes": 832,
+            "rate": null
+          },
+          {
+            "name": "汪承樺",
+            "party": "教科文預算保障e聯盟",
+            "votes": 403,
+            "rate": null
+          },
+          {
+            "name": "洪和成",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 366,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "陳福海",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 23248,
+            "rate": null
+          },
+          {
+            "name": "楊鎮浯",
+            "party": "中國國民黨",
+            "votes": 19340,
+            "rate": null
+          },
+          {
+            "name": "李應文",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 3459,
+            "rate": null
+          },
+          {
+            "name": "洪志恒",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 752,
+            "rate": null
+          },
+          {
+            "name": "朱紀瑋",
+            "party": "龍黨",
+            "votes": 174,
+            "rate": null
+          },
+          {
+            "name": "林志錦",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 141,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "新竹市",
+      "band": "swing_only",
+      "label": "一般搖擺",
+      "margin_2022_pct": 5.8,
+      "margin_2022_votes": 20357,
+      "electorate_2022": 350758,
+      "winner_2022": {
+        "name": "高虹安",
+        "party": "台灣民眾黨"
+      },
+      "turnover_count": 1,
+      "is_swing": true,
+      "cands_2026_count": 3,
+      "candidates_2026": [
+        {
+          "name": "高虹安",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-02",
+          "source_page": 2
+        },
+        {
+          "name": "莊競程",
+          "name_status": "readable",
+          "party": "民主進步黨",
+          "registered_on": "2026-09-03",
+          "source_page": 2
+        },
+        {
+          "name": "何志勇",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-04",
+          "source_page": 2
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "林智堅",
+            "party": "民主進步黨",
+            "votes": 76578,
+            "rate": null
+          },
+          {
+            "name": "許明財",
+            "party": "中國國民黨",
+            "votes": 75564,
+            "rate": null
+          },
+          {
+            "name": "蔡仁堅",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 40480,
+            "rate": null
+          },
+          {
+            "name": "吳淑敏",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 5101,
+            "rate": null
+          },
+          {
+            "name": "劉正幸",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 1914,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "林智堅",
+            "party": "民主進步黨",
+            "votes": 107612,
+            "rate": null
+          },
+          {
+            "name": "許明財",
+            "party": "中國國民黨",
+            "votes": 60508,
+            "rate": null
+          },
+          {
+            "name": "謝文進",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 44101,
+            "rate": null
+          },
+          {
+            "name": "黃源甫",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 3603,
+            "rate": null
+          },
+          {
+            "name": "李驥羣",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 705,
+            "rate": null
+          },
+          {
+            "name": "郭榮睿",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 574,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "高虹安",
+            "party": "台灣民眾黨",
+            "votes": 98121,
+            "rate": null
+          },
+          {
+            "name": "沈慧虹",
+            "party": "民主進步黨",
+            "votes": 77764,
+            "rate": null
+          },
+          {
+            "name": "林耕仁",
+            "party": "中國國民黨",
+            "votes": 39391,
+            "rate": null
+          },
+          {
+            "name": "李驥羣",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 1108,
+            "rate": null
+          },
+          {
+            "name": "黃源甫",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 1049,
+            "rate": null
+          },
+          {
+            "name": "龔偉綸",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 508,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "宜蘭縣",
+      "band": "swing_only",
+      "label": "一般搖擺",
+      "margin_2022_pct": 6.04,
+      "margin_2022_votes": 22642,
+      "electorate_2022": 374779,
+      "winner_2022": {
+        "name": "林姿妙",
+        "party": "中國國民黨"
+      },
+      "turnover_count": 1,
+      "is_swing": true,
+      "cands_2026_count": 5,
+      "candidates_2026": [
+        {
+          "name": "陳宏毅",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-08-31",
+          "source_page": 1
+        },
+        {
+          "name": "吳宗憲",
+          "name_status": "readable",
+          "party": "中國國民黨",
+          "registered_on": "2026-09-01",
+          "source_page": 1
+        },
+        {
+          "name": "劉燦輝",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-01",
+          "source_page": 1
+        },
+        {
+          "name": "林國漳",
+          "name_status": "readable",
+          "party": "民主進步黨",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        },
+        {
+          "name": "楊鉯婷",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-04",
+          "source_page": 1
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "林聰賢",
+            "party": "民主進步黨",
+            "votes": 160253,
+            "rate": null
+          },
+          {
+            "name": "邱淑媞",
+            "party": "中國國民黨",
+            "votes": 90320,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "林姿妙",
+            "party": "中國國民黨",
+            "votes": 123767,
+            "rate": null
+          },
+          {
+            "name": "陳歐珀",
+            "party": "民主進步黨",
+            "votes": 95609,
+            "rate": null
+          },
+          {
+            "name": "林信華",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 27399,
+            "rate": null
+          },
+          {
+            "name": "林錦坤",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 1922,
+            "rate": null
+          },
+          {
+            "name": "陳秋境",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 1424,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "林姿妙",
+            "party": "中國國民黨",
+            "votes": 119421,
+            "rate": null
+          },
+          {
+            "name": "江淵",
+            "party": "民主進步黨",
+            "votes": 96779,
+            "rate": null
+          },
+          {
+            "name": "陳琬惠",
+            "party": "台灣民眾黨",
+            "votes": 16412,
+            "rate": null
+          },
+          {
+            "name": "許鋐哲",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 1036,
+            "rate": null
+          },
+          {
+            "name": "朱振東",
+            "party": "天一黨",
+            "votes": 919,
+            "rate": null
+          },
+          {
+            "name": "陳秋境",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 714,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "連江縣",
+      "band": "solid",
+      "label": "穩定領先",
+      "margin_2022_pct": 6.39,
+      "margin_2022_votes": 755,
+      "electorate_2022": 11810,
+      "winner_2022": {
+        "name": "王忠銘",
+        "party": "中國國民黨"
+      },
+      "turnover_count": 0,
+      "is_swing": false,
+      "cands_2026_count": 2,
+      "candidates_2026": [
+        {
+          "name": "王忠銘",
+          "name_status": "readable",
+          "party": "中國國民黨",
+          "registered_on": "2026-08-31",
+          "source_page": 2
+        },
+        {
+          "name": "曹爾元",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-02",
+          "source_page": 2
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "劉增應",
+            "party": "中國國民黨",
+            "votes": 4385,
+            "rate": null
+          },
+          {
+            "name": "楊綏生",
+            "party": "中國國民黨",
+            "votes": 2234,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "劉增應",
+            "party": "中國國民黨",
+            "votes": 4861,
+            "rate": null
+          },
+          {
+            "name": "朱秀珍",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 1284,
+            "rate": null
+          },
+          {
+            "name": "蘇柏豪",
+            "party": "樹黨",
+            "votes": 927,
+            "rate": null
+          },
+          {
+            "name": "魏耀乾",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 336,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "王忠銘",
+            "party": "中國國民黨",
+            "votes": 4337,
+            "rate": null
+          },
+          {
+            "name": "曹爾元",
+            "party": "中國國民黨",
+            "votes": 3582,
+            "rate": null
+          },
+          {
+            "name": "李問",
+            "party": "民主進步黨",
+            "votes": 586,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "臺北市",
+      "band": "swing_only",
+      "label": "一般搖擺",
+      "margin_2022_pct": 6.96,
+      "margin_2022_votes": 141032,
+      "electorate_2022": 2026769,
+      "winner_2022": {
+        "name": "蔣萬安",
+        "party": "中國國民黨"
+      },
+      "turnover_count": 2,
+      "is_swing": true,
+      "cands_2026_count": 6,
+      "candidates_2026": [
+        {
+          "name": "郭璽",
+          "name_status": "readable",
+          "party": "台灣麻將最大黨",
+          "registered_on": "2026-08-31",
+          "source_page": 1
+        },
+        {
+          "name": "沈伯洋",
+          "name_status": "readable",
+          "party": "民主進步黨",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        },
+        {
+          "name": "蕭文乾",
+          "name_status": "readable",
+          "party": "臺灣SoR無法黨",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        },
+        {
+          "name": "唐新民",
+          "name_status": "readable",
+          "party": "三勢團結促進聯盟",
+          "registered_on": "2026-09-03",
+          "source_page": 1
+        },
+        {
+          "name": "蔣萬安",
+          "name_status": "readable",
+          "party": "中國國民黨",
+          "registered_on": "2026-09-04",
+          "source_page": 1
+        },
+        {
+          "name": "林志成",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-04",
+          "source_page": 1
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "柯文哲",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 853983,
+            "rate": null
+          },
+          {
+            "name": "連勝文",
+            "party": "中國國民黨",
+            "votes": 609932,
+            "rate": null
+          },
+          {
+            "name": "趙衍慶",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 15898,
+            "rate": null
+          },
+          {
+            "name": "馮光遠",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 8080,
+            "rate": null
+          },
+          {
+            "name": "李宏信",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 2621,
+            "rate": null
+          },
+          {
+            "name": "陳永昌",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 1908,
+            "rate": null
+          },
+          {
+            "name": "陳汝斌",
+            "party": "三等國民公義人權自救黨",
+            "votes": 1624,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "柯文哲",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 580663,
+            "rate": null
+          },
+          {
+            "name": "丁守中",
+            "party": "中國國民黨",
+            "votes": 577096,
+            "rate": null
+          },
+          {
+            "name": "姚文智",
+            "party": "民主進步黨",
+            "votes": 244342,
+            "rate": null
+          },
+          {
+            "name": "李錫錕",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 6158,
+            "rate": null
+          },
+          {
+            "name": "吳蕚洋",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 5611,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "蔣萬安",
+            "party": "中國國民黨",
+            "votes": 575590,
+            "rate": null
+          },
+          {
+            "name": "陳時中",
+            "party": "民主進步黨",
+            "votes": 434558,
+            "rate": null
+          },
+          {
+            "name": "黃珊珊",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 342141,
+            "rate": null
+          },
+          {
+            "name": "童文薰",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 2425,
+            "rate": null
+          },
+          {
+            "name": "張家豪",
+            "party": "台灣動物保護黨",
+            "votes": 2367,
+            "rate": null
+          },
+          {
+            "name": "蘇煥智",
+            "party": "台灣維新",
+            "votes": 1851,
+            "rate": null
+          },
+          {
+            "name": "王文娟",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 451,
+            "rate": null
+          },
+          {
+            "name": "鄭匡宇",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 386,
+            "rate": null
+          },
+          {
+            "name": "施奉先",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 383,
+            "rate": null
+          },
+          {
+            "name": "唐新民",
+            "party": "共和黨",
+            "votes": 316,
+            "rate": null
+          },
+          {
+            "name": "黃聖峰",
+            "party": "台澎黨",
+            "votes": 256,
+            "rate": null
+          },
+          {
+            "name": "謝立康",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 227,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "桃園市",
+      "band": "swing_only",
+      "label": "一般搖擺",
+      "margin_2022_pct": 7.05,
+      "margin_2022_votes": 128589,
+      "electorate_2022": 1825127,
+      "winner_2022": {
+        "name": "張善政",
+        "party": "中國國民黨"
+      },
+      "turnover_count": 1,
+      "is_swing": true,
+      "cands_2026_count": 2,
+      "candidates_2026": [
+        {
+          "name": "張善政",
+          "name_status": "readable",
+          "party": "中國國民黨",
+          "registered_on": "2026-09-01",
+          "source_page": 1
+        },
+        {
+          "name": "黃世杰",
+          "name_status": "readable",
+          "party": "民主進步黨",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "鄭文燦",
+            "party": "民主進步黨",
+            "votes": 492414,
+            "rate": null
+          },
+          {
+            "name": "吳志揚",
+            "party": "中國國民黨",
+            "votes": 463133,
+            "rate": null
+          },
+          {
+            "name": "許睿智",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 9943,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "鄭文燦",
+            "party": "民主進步黨",
+            "votes": 552330,
+            "rate": null
+          },
+          {
+            "name": "陳學聖",
+            "party": "中國國民黨",
+            "votes": 407234,
+            "rate": null
+          },
+          {
+            "name": "楊麗環",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 51518,
+            "rate": null
+          },
+          {
+            "name": "朱梅雪",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 18200,
+            "rate": null
+          },
+          {
+            "name": "吳富彤",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 3867,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "張善政",
+            "party": "中國國民黨",
+            "votes": 557572,
+            "rate": null
+          },
+          {
+            "name": "鄭運鵬",
+            "party": "民主進步黨",
+            "votes": 428983,
+            "rate": null
+          },
+          {
+            "name": "賴香伶",
+            "party": "台灣民眾黨",
+            "votes": 54926,
+            "rate": null
+          },
+          {
+            "name": "鄭寶清",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 30282,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "苗栗縣",
+      "band": "swing_only",
+      "label": "一般搖擺",
+      "margin_2022_pct": 7.51,
+      "margin_2022_votes": 33343,
+      "electorate_2022": 443908,
+      "winner_2022": {
+        "name": "鍾東錦",
+        "party": "無黨籍及未經政黨推薦"
+      },
+      "turnover_count": 1,
+      "is_swing": true,
+      "cands_2026_count": 2,
+      "candidates_2026": [
+        {
+          "name": "陳品安",
+          "name_status": "readable",
+          "party": "民主進步黨",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        },
+        {
+          "name": "鍾東錦",
+          "name_status": "readable",
+          "party": "中國國民黨",
+          "registered_on": "2026-09-03",
+          "source_page": 1
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "徐耀昌",
+            "party": "中國國民黨",
+            "votes": 147547,
+            "rate": null
+          },
+          {
+            "name": "吳宜臻",
+            "party": "民主進步黨",
+            "votes": 89838,
+            "rate": null
+          },
+          {
+            "name": "康世儒",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 60356,
+            "rate": null
+          },
+          {
+            "name": "江明修",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 14978,
+            "rate": null
+          },
+          {
+            "name": "陳淑芬",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 2137,
+            "rate": null
+          },
+          {
+            "name": "曾國良",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 1807,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "徐耀昌",
+            "party": "中國國民黨",
+            "votes": 175756,
+            "rate": null
+          },
+          {
+            "name": "徐定禎",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 112704,
+            "rate": null
+          },
+          {
+            "name": "黃玉燕",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 9030,
+            "rate": null
+          },
+          {
+            "name": "朱泰平",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 6880,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "鍾東錦",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 124603,
+            "rate": null
+          },
+          {
+            "name": "徐定禎",
+            "party": "民主進步黨",
+            "votes": 91260,
+            "rate": null
+          },
+          {
+            "name": "宋國鼎",
+            "party": "時代力量",
+            "votes": 39347,
+            "rate": null
+          },
+          {
+            "name": "謝福弘",
+            "party": "中國國民黨",
+            "votes": 32026,
+            "rate": null
+          },
+          {
+            "name": "吳盛聖",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 4864,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "基隆市",
+      "band": "swing_only",
+      "label": "一般搖擺",
+      "margin_2022_pct": 8.26,
+      "margin_2022_votes": 25430,
+      "electorate_2022": 307913,
+      "winner_2022": {
+        "name": "謝國樑",
+        "party": "中國國民黨"
+      },
+      "turnover_count": 1,
+      "is_swing": true,
+      "cands_2026_count": 3,
+      "candidates_2026": [
+        {
+          "name": "謝國樑",
+          "name_status": "readable",
+          "party": "中國國民黨",
+          "registered_on": "2026-09-01",
+          "source_page": 2
+        },
+        {
+          "name": "魏造文",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-01",
+          "source_page": 2
+        },
+        {
+          "name": "童子瑋",
+          "name_status": "readable",
+          "party": "民主進步黨",
+          "registered_on": "2026-09-02",
+          "source_page": 2
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "林右昌",
+            "party": "民主進步黨",
+            "votes": 101010,
+            "rate": null
+          },
+          {
+            "name": "謝立功",
+            "party": "中國國民黨",
+            "votes": 52198,
+            "rate": null
+          },
+          {
+            "name": "黃景泰",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 30914,
+            "rate": null
+          },
+          {
+            "name": "江鑒育",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 2517,
+            "rate": null
+          },
+          {
+            "name": "吳武明",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 2023,
+            "rate": null
+          },
+          {
+            "name": "何燕堂",
+            "party": "人民民主陣線",
+            "votes": 1376,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "林右昌",
+            "party": "民主進步黨",
+            "votes": 102167,
+            "rate": null
+          },
+          {
+            "name": "謝立功",
+            "party": "中國國民黨",
+            "votes": 86529,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "謝國樑",
+            "party": "中國國民黨",
+            "votes": 96784,
+            "rate": null
+          },
+          {
+            "name": "蔡適應",
+            "party": "民主進步黨",
+            "votes": 71354,
+            "rate": null
+          },
+          {
+            "name": "陳薇仲",
+            "party": "時代力量",
+            "votes": 12000,
+            "rate": null
+          },
+          {
+            "name": "黃希賢",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 2136,
+            "rate": null
+          },
+          {
+            "name": "曾國民",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 619,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "南投縣",
+      "band": "solid",
+      "label": "穩定領先",
+      "margin_2022_pct": 8.93,
+      "margin_2022_votes": 36263,
+      "electorate_2022": 406195,
+      "winner_2022": {
+        "name": "許淑華",
+        "party": "中國國民黨"
+      },
+      "turnover_count": 0,
+      "is_swing": false,
+      "cands_2026_count": 2,
+      "candidates_2026": [
+        {
+          "name": "温世政",
+          "name_status": "readable",
+          "party": "民主進步黨",
+          "registered_on": "2026-08-31",
+          "source_page": 1
+        },
+        {
+          "name": "許淑華",
+          "name_status": "readable",
+          "party": "中國國民黨",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "林明溱",
+            "party": "中國國民黨",
+            "votes": 149361,
+            "rate": null
+          },
+          {
+            "name": "李文忠",
+            "party": "民主進步黨",
+            "votes": 143719,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "林明溱",
+            "party": "中國國民黨",
+            "votes": 195385,
+            "rate": null
+          },
+          {
+            "name": "洪國浩",
+            "party": "民主進步黨",
+            "votes": 97460,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "許淑華",
+            "party": "中國國民黨",
+            "votes": 154256,
+            "rate": null
+          },
+          {
+            "name": "蔡培慧",
+            "party": "民主進步黨",
+            "votes": 117993,
+            "rate": null
+          },
+          {
+            "name": "王永慶",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 3250,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "彰化縣",
+      "band": "swing_only",
+      "label": "一般搖擺",
+      "margin_2022_pct": 9.36,
+      "margin_2022_votes": 96316,
+      "electorate_2022": 1028606,
+      "winner_2022": {
+        "name": "王惠美",
+        "party": "中國國民黨"
+      },
+      "turnover_count": 1,
+      "is_swing": true,
+      "cands_2026_count": 4,
+      "candidates_2026": [
+        {
+          "name": "陳重嘉",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-08-31",
+          "source_page": 1
+        },
+        {
+          "name": "陳素月",
+          "name_status": "readable",
+          "party": "民主進步黨",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        },
+        {
+          "name": "邱建富",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-03",
+          "source_page": 1
+        },
+        {
+          "name": "魏平政",
+          "name_status": "readable",
+          "party": "中國國民黨",
+          "registered_on": "2026-09-03",
+          "source_page": 1
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "魏明谷",
+            "party": "民主進步黨",
+            "votes": 386405,
+            "rate": null
+          },
+          {
+            "name": "林滄敏",
+            "party": "中國國民黨",
+            "votes": 284738,
+            "rate": null
+          },
+          {
+            "name": "黃文玲",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 37593,
+            "rate": null
+          },
+          {
+            "name": "洪敏雄",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 10674,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "王惠美",
+            "party": "中國國民黨",
+            "votes": 377795,
+            "rate": null
+          },
+          {
+            "name": "魏明谷",
+            "party": "民主進步黨",
+            "votes": 283269,
+            "rate": null
+          },
+          {
+            "name": "黃文玲",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 34690,
+            "rate": null
+          },
+          {
+            "name": "白雅燦",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 7402,
+            "rate": null
+          },
+          {
+            "name": "洪敏雄",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 7263,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "王惠美",
+            "party": "中國國民黨",
+            "votes": 369133,
+            "rate": null
+          },
+          {
+            "name": "黃秀芳",
+            "party": "民主進步黨",
+            "votes": 272817,
+            "rate": null
+          },
+          {
+            "name": "蕭仁正",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 8474,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "雲林縣",
+      "band": "swing_only",
+      "label": "一般搖擺",
+      "margin_2022_pct": 9.82,
+      "margin_2022_votes": 54899,
+      "electorate_2022": 559273,
+      "winner_2022": {
+        "name": "張麗善",
+        "party": "中國國民黨"
+      },
+      "turnover_count": 1,
+      "is_swing": true,
+      "cands_2026_count": 4,
+      "candidates_2026": [
+        {
+          "name": "吳炳輝",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-08-31",
+          "source_page": 1
+        },
+        {
+          "name": "張嘉郡",
+          "name_status": "readable",
+          "party": "中國國民黨",
+          "registered_on": "2026-09-03",
+          "source_page": 1
+        },
+        {
+          "name": "劉建國",
+          "name_status": "readable",
+          "party": "民主進步黨",
+          "registered_on": "2026-09-04",
+          "source_page": 1
+        },
+        {
+          "name": "林佳瑜",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-04",
+          "source_page": 1
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "李進勇",
+            "party": "民主進步黨",
+            "votes": 232900,
+            "rate": null
+          },
+          {
+            "name": "張麗善",
+            "party": "中國國民黨",
+            "votes": 175862,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "張麗善",
+            "party": "中國國民黨",
+            "votes": 210770,
+            "rate": null
+          },
+          {
+            "name": "李進勇",
+            "party": "民主進步黨",
+            "votes": 163325,
+            "rate": null
+          },
+          {
+            "name": "王麗萍",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 11261,
+            "rate": null
+          },
+          {
+            "name": "林佳瑜",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 6163,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "張麗善",
+            "party": "中國國民黨",
+            "votes": 207519,
+            "rate": null
+          },
+          {
+            "name": "劉建國",
+            "party": "民主進步黨",
+            "votes": 152620,
+            "rate": null
+          },
+          {
+            "name": "林佳瑜",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 6694,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "高雄市",
+      "band": "swing_only",
+      "label": "一般搖擺",
+      "margin_2022_pct": 10.36,
+      "margin_2022_votes": 236540,
+      "electorate_2022": 2282623,
+      "winner_2022": {
+        "name": "陳其邁",
+        "party": "民主進步黨"
+      },
+      "turnover_count": 2,
+      "is_swing": true,
+      "cands_2026_count": 5,
+      "candidates_2026": [
+        {
+          "name": "張靜",
+          "name_status": "readable",
+          "party": "司法改革黨",
+          "registered_on": "2026-08-31",
+          "source_page": 1
+        },
+        {
+          "name": "賴瑞隆",
+          "name_status": "readable",
+          "party": "民主進步黨",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        },
+        {
+          "name": "王肇民",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        },
+        {
+          "name": "柯志恩",
+          "name_status": "readable",
+          "party": "中國國民黨",
+          "registered_on": "2026-09-03",
+          "source_page": 1
+        },
+        {
+          "name": "洪方隆",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-04",
+          "source_page": 1
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "陳菊",
+            "party": "民主進步黨",
+            "votes": 993300,
+            "rate": null
+          },
+          {
+            "name": "楊秋興",
+            "party": "中國國民黨",
+            "votes": 450647,
+            "rate": null
+          },
+          {
+            "name": "周可盛",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 14925,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "韓國瑜",
+            "party": "中國國民黨",
+            "votes": 892545,
+            "rate": null
+          },
+          {
+            "name": "陳其邁",
+            "party": "民主進步黨",
+            "votes": 742239,
+            "rate": null
+          },
+          {
+            "name": "蘇盈貴",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 14125,
+            "rate": null
+          },
+          {
+            "name": "璩美鳳",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 7998,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "陳其邁",
+            "party": "民主進步黨",
+            "votes": 766147,
+            "rate": null
+          },
+          {
+            "name": "柯志恩",
+            "party": "中國國民黨",
+            "votes": 529607,
+            "rate": null
+          },
+          {
+            "name": "曾尹儷",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 14585,
+            "rate": null
+          },
+          {
+            "name": "鄭宇翔",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 8394,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "臺中市",
+      "band": "swing_only",
+      "label": "一般搖擺",
+      "margin_2022_pct": 12.09,
+      "margin_2022_votes": 274883,
+      "electorate_2022": 2274107,
+      "winner_2022": {
+        "name": "盧秀燕",
+        "party": "中國國民黨"
+      },
+      "turnover_count": 2,
+      "is_swing": true,
+      "cands_2026_count": 3,
+      "candidates_2026": [
+        {
+          "name": "何欣純",
+          "name_status": "readable",
+          "party": "民主進步黨",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        },
+        {
+          "name": "江啟臣",
+          "name_status": "readable",
+          "party": "中國國民黨",
+          "registered_on": "2026-09-03",
+          "source_page": 1
+        },
+        {
+          "name": "洪麗華",
+          "name_status": "readable",
+          "party": "司法正義黨",
+          "registered_on": "2026-09-03",
+          "source_page": 1
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "林佳龍",
+            "party": "民主進步黨",
+            "votes": 847284,
+            "rate": null
+          },
+          {
+            "name": "胡志強",
+            "party": "中國國民黨",
+            "votes": 637531,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "盧秀燕",
+            "party": "中國國民黨",
+            "votes": 827996,
+            "rate": null
+          },
+          {
+            "name": "林佳龍",
+            "party": "民主進步黨",
+            "votes": 619855,
+            "rate": null
+          },
+          {
+            "name": "宋原通",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 15919,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "盧秀燕",
+            "party": "中國國民黨",
+            "votes": 799107,
+            "rate": null
+          },
+          {
+            "name": "蔡其昌",
+            "party": "民主進步黨",
+            "votes": 524224,
+            "rate": null
+          },
+          {
+            "name": "陳美妃",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 23140,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "嘉義市",
+      "band": "swing_only",
+      "label": "一般搖擺",
+      "margin_2022_pct": 12.65,
+      "margin_2022_votes": 27084,
+      "electorate_2022": 214130,
+      "winner_2022": {
+        "name": "黃敏惠",
+        "party": "中國國民黨"
+      },
+      "turnover_count": 1,
+      "is_swing": true,
+      "cands_2026_count": 5,
+      "candidates_2026": [
+        {
+          "name": "黃宏成台灣阿成世界偉人財神總統",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-08-31",
+          "source_page": 2
+        },
+        {
+          "name": "陳愷璜",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-01",
+          "source_page": 2
+        },
+        {
+          "name": "張啓楷",
+          "name_status": "readable",
+          "party": "台灣民眾黨",
+          "registered_on": "2026-09-02",
+          "source_page": 2
+        },
+        {
+          "name": "王美惠",
+          "name_status": "readable",
+          "party": "民主進步黨",
+          "registered_on": "2026-09-02",
+          "source_page": 2
+        },
+        {
+          "name": "王義成",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-03",
+          "source_page": 2
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "涂醒哲",
+            "party": "民主進步黨",
+            "votes": 74698,
+            "rate": null
+          },
+          {
+            "name": "陳以真",
+            "party": "中國國民黨",
+            "votes": 66108,
+            "rate": null
+          },
+          {
+            "name": "林詩涵",
+            "party": "人民民主陣線",
+            "votes": 2747,
+            "rate": null
+          },
+          {
+            "name": "陳泰山",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 786,
+            "rate": null
+          },
+          {
+            "name": "陳秀麗",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 633,
+            "rate": null
+          },
+          {
+            "name": "許文建",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 330,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "黃敏惠",
+            "party": "中國國民黨",
+            "votes": 58558,
+            "rate": null
+          },
+          {
+            "name": "涂醒哲",
+            "party": "民主進步黨",
+            "votes": 56256,
+            "rate": null
+          },
+          {
+            "name": "蕭淑麗",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 25572,
+            "rate": null
+          },
+          {
+            "name": "黃宏成台灣阿成世界偉人財神總統",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 1822,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "黃敏惠",
+            "party": "中國國民黨",
+            "votes": 59874,
+            "rate": null
+          },
+          {
+            "name": "李俊俋",
+            "party": "民主進步黨",
+            "votes": 32790,
+            "rate": null
+          },
+          {
+            "name": "黃宏成台灣阿成世界偉人財神總統",
+            "party": "無",
+            "votes": 535,
+            "rate": null
+          },
+          {
+            "name": "鄭凱升",
+            "party": "無",
+            "votes": 368,
+            "rate": null
+          },
+          {
+            "name": "陳泰山",
+            "party": "無",
+            "votes": 246,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "新北市",
+      "band": "solid",
+      "label": "穩定領先",
+      "margin_2022_pct": 13.83,
+      "margin_2022_votes": 458579,
+      "electorate_2022": 3316517,
+      "winner_2022": {
+        "name": "侯友宜",
+        "party": "中國國民黨"
+      },
+      "turnover_count": 0,
+      "is_swing": false,
+      "cands_2026_count": 3,
+      "candidates_2026": [
+        {
+          "name": "蘇巧慧",
+          "name_status": "readable",
+          "party": "民主進步黨",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        },
+        {
+          "name": "李四川",
+          "name_status": "readable",
+          "party": "中國國民黨",
+          "registered_on": "2026-09-04",
+          "source_page": 1
+        },
+        {
+          "name": "蘇輝湟",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-04",
+          "source_page": 1
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "朱立倫",
+            "party": "中國國民黨",
+            "votes": 959302,
+            "rate": null
+          },
+          {
+            "name": "游錫堃",
+            "party": "民主進步黨",
+            "votes": 934774,
+            "rate": null
+          },
+          {
+            "name": "李進順",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 22207,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "侯友宜",
+            "party": "中國國民黨",
+            "votes": 1165130,
+            "rate": null
+          },
+          {
+            "name": "蘇貞昌",
+            "party": "民主進步黨",
+            "votes": 873692,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "侯友宜",
+            "party": "中國國民黨",
+            "votes": 1152555,
+            "rate": null
+          },
+          {
+            "name": "林佳龍",
+            "party": "民主進步黨",
+            "votes": 693976,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "臺東縣",
+      "band": "solid",
+      "label": "穩定領先",
+      "margin_2022_pct": 15.49,
+      "margin_2022_votes": 27557,
+      "electorate_2022": 177853,
+      "winner_2022": {
+        "name": "饒慶鈴",
+        "party": "中國國民黨"
+      },
+      "turnover_count": 0,
+      "is_swing": false,
+      "cands_2026_count": 4,
+      "candidates_2026": [
+        {
+          "name": "陳瑩",
+          "name_status": "readable",
+          "party": "民主進步黨",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        },
+        {
+          "name": "吳秀華",
+          "name_status": "readable",
+          "party": "中國國民黨",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        },
+        {
+          "name": "李吳穎智",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-04",
+          "source_page": 1
+        },
+        {
+          "name": "王志偉",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-04",
+          "source_page": 1
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "黃健庭",
+            "party": "中國國民黨",
+            "votes": 64272,
+            "rate": null
+          },
+          {
+            "name": "劉櫂豪",
+            "party": "民主進步黨",
+            "votes": 53860,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "饒慶鈴",
+            "party": "中國國民黨",
+            "votes": 70577,
+            "rate": null
+          },
+          {
+            "name": "劉櫂豪",
+            "party": "民主進步黨",
+            "votes": 44264,
+            "rate": null
+          },
+          {
+            "name": "鄺麗貞",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 3049,
+            "rate": null
+          },
+          {
+            "name": "彭權國",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 988,
+            "rate": null
+          },
+          {
+            "name": "黃裕斌",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 640,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "饒慶鈴",
+            "party": "中國國民黨",
+            "votes": 68661,
+            "rate": null
+          },
+          {
+            "name": "劉櫂豪",
+            "party": "民主進步黨",
+            "votes": 41104,
+            "rate": null
+          },
+          {
+            "name": "陳長宏",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 2383,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "嘉義縣",
+      "band": "solid",
+      "label": "穩定領先",
+      "margin_2022_pct": 16.63,
+      "margin_2022_votes": 70260,
+      "electorate_2022": 422568,
+      "winner_2022": {
+        "name": "翁章梁",
+        "party": "民主進步黨"
+      },
+      "turnover_count": 0,
+      "is_swing": false,
+      "cands_2026_count": 2,
+      "candidates_2026": [
+        {
+          "name": "吳品叡",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-03",
+          "source_page": 1
+        },
+        {
+          "name": "蔡易餘",
+          "name_status": "readable",
+          "party": "民主進步黨",
+          "registered_on": "2026-09-03",
+          "source_page": 1
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "張花冠",
+            "party": "民主進步黨",
+            "votes": 193399,
+            "rate": null
+          },
+          {
+            "name": "翁重鈞",
+            "party": "中國國民黨",
+            "votes": 104488,
+            "rate": null
+          },
+          {
+            "name": "黃宏成台灣阿成世界偉人",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 8639,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "翁章梁",
+            "party": "民主進步黨",
+            "votes": 145288,
+            "rate": null
+          },
+          {
+            "name": "吳育仁",
+            "party": "中國國民黨",
+            "votes": 84243,
+            "rate": null
+          },
+          {
+            "name": "吳芳銘",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 51020,
+            "rate": null
+          },
+          {
+            "name": "林國龍",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 4596,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "翁章梁",
+            "party": "民主進步黨",
+            "votes": 171777,
+            "rate": null
+          },
+          {
+            "name": "王育敏",
+            "party": "中國國民黨",
+            "votes": 101517,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "新竹縣",
+      "band": "solid",
+      "label": "穩定領先",
+      "margin_2022_pct": 17.67,
+      "margin_2022_votes": 79979,
+      "electorate_2022": 452720,
+      "winner_2022": {
+        "name": "楊文科",
+        "party": "中國國民黨"
+      },
+      "turnover_count": 0,
+      "is_swing": false,
+      "cands_2026_count": 3,
+      "candidates_2026": [
+        {
+          "name": "鄭朝方",
+          "name_status": "readable",
+          "party": "民主進步黨",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        },
+        {
+          "name": "朱定瑀",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-02",
+          "source_page": 1
+        },
+        {
+          "name": "徐欣瑩",
+          "name_status": "readable",
+          "party": "中國國民黨",
+          "registered_on": "2026-09-03",
+          "source_page": 1
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "邱鏡淳",
+            "party": "中國國民黨",
+            "votes": 124309,
+            "rate": null
+          },
+          {
+            "name": "鄭永金",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 118698,
+            "rate": null
+          },
+          {
+            "name": "葉芳棟",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 15699,
+            "rate": null
+          },
+          {
+            "name": "莊作兵",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 6115,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "楊文科",
+            "party": "中國國民黨",
+            "votes": 107877,
+            "rate": null
+          },
+          {
+            "name": "徐欣瑩",
+            "party": "民國黨",
+            "votes": 91190,
+            "rate": null
+          },
+          {
+            "name": "鄭朝方",
+            "party": "民主進步黨",
+            "votes": 78170,
+            "rate": null
+          },
+          {
+            "name": "葉芳棟",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 5168,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "楊文科",
+            "party": "中國國民黨",
+            "votes": 163662,
+            "rate": null
+          },
+          {
+            "name": "周江杰",
+            "party": "民主進步黨",
+            "votes": 83683,
+            "rate": null
+          },
+          {
+            "name": "范振揆",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 4874,
+            "rate": null
+          },
+          {
+            "name": "黃秀龍",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 3403,
+            "rate": null
+          },
+          {
+            "name": "劉復嵐",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 2683,
+            "rate": null
+          }
+        ]
+      }
+    },
+    {
+      "county": "花蓮縣",
+      "band": "swing_only",
+      "label": "一般搖擺",
+      "margin_2022_pct": 18.34,
+      "margin_2022_votes": 48800,
+      "electorate_2022": 266058,
+      "winner_2022": {
+        "name": "徐榛蔚",
+        "party": "中國國民黨"
+      },
+      "turnover_count": 1,
+      "is_swing": true,
+      "cands_2026_count": 4,
+      "candidates_2026": [
+        {
+          "name": "游淑貞",
+          "name_status": "readable",
+          "party": "中國國民黨",
+          "registered_on": "2026-09-03",
+          "source_page": 1
+        },
+        {
+          "name": "張峻",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-03",
+          "source_page": 1
+        },
+        {
+          "name": "魏嘉賢",
+          "name_status": "readable",
+          "party": "無",
+          "registered_on": "2026-09-03",
+          "source_page": 1
+        },
+        {
+          "name": "羅佩秦",
+          "name_status": "readable",
+          "party": "台灣工黨",
+          "registered_on": "2026-09-03",
+          "source_page": 1
+        }
+      ],
+      "trend": {
+        "2014": [
+          {
+            "name": "傅崐萁",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 89048,
+            "rate": null
+          },
+          {
+            "name": "蔡啟塔",
+            "party": "中國國民黨",
+            "votes": 43504,
+            "rate": null
+          },
+          {
+            "name": "柯賜海",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 14954,
+            "rate": null
+          },
+          {
+            "name": "徐榛蔚",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 5436,
+            "rate": null
+          },
+          {
+            "name": "黄師鵬",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 2369,
+            "rate": null
+          },
+          {
+            "name": "朱國華",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 2218,
+            "rate": null
+          }
+        ],
+        "2018": [
+          {
+            "name": "徐榛蔚",
+            "party": "中國國民黨",
+            "votes": 121297,
+            "rate": null
+          },
+          {
+            "name": "劉曉玫",
+            "party": "民主進步黨",
+            "votes": 43879,
+            "rate": null
+          },
+          {
+            "name": "黄師鵬",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 4420,
+            "rate": null
+          }
+        ],
+        "2022": [
+          {
+            "name": "徐榛蔚",
+            "party": "中國國民黨",
+            "votes": 96645,
+            "rate": null
+          },
+          {
+            "name": "谷辣斯．尤達卡 Kolas Yotaka",
+            "party": "民主進步黨",
+            "votes": 47845,
+            "rate": null
+          },
+          {
+            "name": "黄師鵬",
+            "party": "無黨籍及未經政黨推薦",
+            "votes": 4817,
+            "rate": null
+          }
+        ]
+      }
+    }
+  ]
+}

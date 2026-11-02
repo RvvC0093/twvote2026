@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="election-viewer-release" content="v78">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'none'">
+  <title>2026 拉鋸地圖 · 臺灣選舉觀察</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta property="og:title" content="2026 拉鋸地圖 · 臺灣選舉觀察">
+  <meta property="og:description" content="2026 縣市長與議員選舉拉鋸榜、末席差距指標與歷史開票視覺化">
+  <meta property="og:image" content="og.png">
+  <link rel="stylesheet" href="style.css?release=v78">
+  <script src="viewer_core.js?release=v78" defer></script>
+  <script src="map_engine.js?release=v78" defer></script>
+  <script src="ui_shell.js?release=v78" defer></script>
+  <script src="contest_board.js?release=v78" defer></script>
+  <script src="app.js?release=v78" defer></script>
+</head>
+<body data-map-theme="dark" class="observation-stage-active">
+  <header class="topbar">
+    <div class="topbar-brand">
+      <h1 id="app-title">2026 拉鋸地圖</h1>
+      <span id="observation-meta" class="meta-pill" role="status" aria-live="polite">審定名冊（公告 2026-10-16）</span>
+    </div>
+
+    <!-- segmented control: 縣市長 ｜ 議員 -->
+    <div class="topbar-segmented" role="radiogroup" aria-label="公職層級">
+      <button type="button" id="tab-mayor" class="segmented-btn active" role="radio" aria-checked="true">縣市長</button>
+      <button type="button" id="tab-council" class="segmented-btn" role="radio" aria-checked="false">議員</button>
+    </div>
+
+    <div class="topbar-actions">
+      <button type="button" id="spotlight-trigger-btn" class="spotlight-trigger-btn" aria-label="快速搜尋 (⌘K)">🔍 搜尋 ⌘K</button>
+
+      <!-- 更多選項下拉選單 -->
+      <details class="more-menu" id="topbar-more-menu">
+        <summary class="more-menu-btn" aria-label="更多選單">⋯</summary>
+        <div class="more-menu-dropdown">
+          <button type="button" id="theme-toggle-btn" class="menu-item-btn">☀️ 切換淺色</button>
+          <div class="menu-divider"></div>
+          <span class="menu-header">其他地方公職</span>
+          <button type="button" class="menu-item-btn" data-other-office="township_mayor">鄉鎮市長</button>
+          <button type="button" class="menu-item-btn" data-other-office="township_representative">鄉鎮市民代表</button>
+          <button type="button" class="menu-item-btn" data-other-office="village_chief">村里長</button>
+          <button type="button" class="menu-item-btn" data-other-office="indigenous_district_mayor">原住民區長</button>
+          <button type="button" class="menu-item-btn" data-other-office="indigenous_district_representative">原住民區代表</button>
+          <div class="menu-divider"></div>
+          <button type="button" id="open-limitations-btn" class="menu-item-btn">ℹ️ 資料限制與說明</button>
+        </div>
+      </details>
+    </div>
+  </header>
+
+  <main>
+    <section id="observation-panel" aria-label="拉鋸選情地圖與榜單">
+      <div class="observation-layout">
+        <!-- 主地圖區 -->
+        <section class="observation-map-card" aria-label="行政區地圖導航">
+          <div class="observation-map-toolbar">
+            <nav id="observation-breadcrumb" class="observation-breadcrumb" aria-label="選區位置"></nav>
+            <div id="observation-filter-bar" class="observation-filter-bar" aria-label="選情圖層篩選"></div>
+          </div>
+
+          <p id="observation-map-status" class="observation-map-status" role="status">正在整理本地行政區圖資…</p>
+
+          <div class="observation-map-wrap">
+            <canvas id="observation-map" tabindex="0" aria-label="選前行政區定位地圖"></canvas>
+
+            <!-- 離島固定小框 -->
+            <div class="observation-islands-wrapper" id="observation-islands-wrapper">
+              <div id="observation-islands" class="observation-islands" aria-label="離島縣市"></div>
+            </div>
+
+            <!-- 地圖控制：只留 ＋ − ⌖ 3 顆按鈕 -->
+            <div class="observation-map-tools" aria-label="地圖控制">
+              <button id="observation-map-back" type="button" disabled title="上一層">上一層</button>
+              <button id="observation-map-zoom-in" type="button" aria-label="放大地圖" disabled title="放大">＋</button>
+              <button id="observation-map-zoom-out" type="button" aria-label="縮小地圖" disabled title="縮小">−</button>
+              <button id="observation-map-reset" type="button" disabled aria-label="重設地圖視野" title="重設視野">⌖</button>
+            </div>
+
+            <span id="observation-map-hover" class="observation-map-hover" aria-live="polite"></span>
+          </div>
+
+          <!-- 地圖單色階圖例 -->
+          <div class="swing-legend" id="map-legend-bar" aria-label="選情指標圖例">
+            <span class="swing-legend-item"><span class="swing-indicator legend-tone-4" aria-hidden="true"></span> 核心激戰 / 極接近 (≤1%)</span>
+            <span class="swing-legend-item"><span class="swing-indicator legend-tone-3" aria-hidden="true"></span> 傳統激戰 / 接近 (≤3%)</span>
+            <span class="swing-legend-item"><span class="swing-indicator legend-tone-2" aria-hidden="true"></span> 一般搖擺 / 普通 (≤6%)</span>
+            <span class="swing-legend-item"><span class="swing-indicator legend-tone-1" aria-hidden="true"></span> 穩定領先 / 寬鬆 (>6%)</span>
+            <span class="swing-legend-item"><span class="swing-indicator legend-tone-stripe" aria-hidden="true"></span> 邊界新劃 / 無對照</span>
+          </div>
+        </section>
+
+        <!-- 側欄面板 (桌機 360px 可收合，手機 bottom sheet) -->
+        <aside class="observation-inspector glass-sheet" id="observation-inspector" aria-label="選情榜單與詳情" data-detent="peek" data-panel-width="narrow">
+          <div class="sheet-grabber-bar" aria-hidden="true"><span class="sheet-grabber"></span></div>
+
+          <div class="inspector-spatial-bar">
+            <div class="inspector-tabs">
+              <button type="button" id="tab-contest-board" class="inspector-tab-btn active">拉鋸榜</button>
+              <button type="button" id="tab-inspector-detail" class="inspector-tab-btn">選情卡片</button>
+            </div>
+            <label class="inspector-width-label">面板寬度 <select id="inspector-width" aria-label="選情面板寬度"><option value="narrow">窄版</option><option value="wide">寬版</option><option value="full">全螢幕</option></select></label>
+            <button type="button" id="inspector-collapse-btn" class="inspector-collapse-btn" aria-label="收合面板" title="收合面板">⇥</button>
+          </div>
+
+          <!-- 側欄內容區 1：拉鋸榜容器 -->
+          <div id="contest-board-container" class="contest-board-container"></div>
+
+          <!-- 側欄內容區 2：卡片詳情 -->
+          <div id="observation-detail" class="observation-detail hidden" aria-live="polite"></div>
+
+          <!-- 行政區瀏覽備用 -->
+          <details id="observation-list" class="observation-browser">
+            <summary id="observation-list-title">以名稱尋找行政區</summary>
+            <label class="search-label">篩選當前層級<input id="observation-search" type="search" placeholder="輸入名稱" autocomplete="off"></label>
+            <div id="observation-navigation" aria-live="polite"></div>
+          </details>
+        </aside>
+
+        <button type="button" id="inspector-expand-btn" class="inspector-expand-btn hidden" aria-label="展開選情面板">⇤ 展開選情面板</button>
+      </div>
+
+      <!-- 8 項限制與資料說明彈出卡片 -->
+      <dialog id="limitations-modal" class="limitations-modal">
+        <div class="limitations-card">
+          <div class="limitations-header">
+            <h2>資料來源與限制揭露</h2>
+            <button type="button" id="close-limitations-btn" class="close-btn" aria-label="關閉說明">✕</button>
+          </div>
+          <div class="limitations-body">
+            <ol class="limitations-list">
+              <li><strong>審定名冊基準：</strong>本系統收錄中選會 2026-10-16 公告審定通過之直轄市長、直轄市議員、縣市長與縣市議員名冊，已剔除經主管機關審定不符資格之 10 位參選人。</li>
+              <li><strong>行政區與選區對照：</strong>地圖底圖採用 2025 年行政區邊界為定位基底；議員選區依中選會《中選務字第1153150253號》公告之劃分範圍以行政區聚合呈現，非正式實體幾何圖形。</li>
+              <li><strong>催票率定義：</strong>催票率為「得票數 ÷ 選舉人數」，呈現候選人從整體公民中獲取實質支持之動員比例；此指標受投票率影響，不等同傳統開票得票率。</li>
+              <li><strong>議員末席差距指標：</strong>計算 2022 年同選區最後一位當選人（以 `*` 正式席次為準）與第一位落選者之票數差額 ÷ 該選區有效票總數（%）；議員層不計算第一名勝差或拉鋸度。</li>
+              <li><strong>婦女保障名額處理：</strong>婦保當選者（標記 `!`）依公職選罷法逕行錄取，其得票可能低於落選頭，因此不納入最後常態席次票數差距計算，避免失真低估實質競爭強度。</li>
+              <li><strong>席次搖擺度計算：</strong>以 2014、2018、2022 連續三屆議員選舉為基準，計算主要政黨席次淨變更數相對於該選區總應選席次之變動比例。</li>
+              <li><strong>選區邊界重劃標記：</strong>歷屆選區範圍若有鄉鎮整併或調整，標記為 `新劃選區`，不進行跨屆歷史比較以避免誤導。</li>
+              <li><strong>候選人政黨推薦：</strong>候選人政黨標示依中選會公告之登記政黨呈現，不代表各政黨之最終競選同盟或配票策略。</li>
+            </ol>
+          </div>
+        </div>
+      </dialog>
+    </section>
+  </main>
+
+  <!-- 全域搜尋 Spotlight 模態框 -->
+  <div id="spotlight-modal" class="spotlight-backdrop hidden" role="dialog" aria-modal="true" aria-label="全域快速搜尋">
+    <div class="spotlight-card">
+      <div class="spotlight-search-header">
+        <span class="spotlight-search-icon" aria-hidden="true">🔍</span>
+        <input id="spotlight-input" type="search" placeholder="搜尋縣市、議員選區、鄉鎮市區或候選人 (⌘K)" autocomplete="off">
+        <kbd class="spotlight-kbd">ESC</kbd>
+      </div>
+      <div id="spotlight-results" class="spotlight-results" role="listbox"></div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p>2026 臺灣地方公職人員選舉觀察 · 依中選會 2026-10-16 審定名冊與歷屆投開票資料如實呈現</p>
+  </footer>
+</body>
+</html>
