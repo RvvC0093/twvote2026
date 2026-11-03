@@ -477,6 +477,23 @@
   }
 
   function mapBoundaryStyle(level, selected, swingStatus = null, theme = "light", options = {}) {
+    const style = legacyMapBoundaryStyle(level, selected, swingStatus, theme, options);
+    if (!Number.isFinite(options.viewportWidth)) return style;
+    // CSS pixels, independent of devicePixelRatio. Dense/small maps need finer lines.
+    const size = Math.min(options.viewportWidth, options.viewportHeight || options.viewportWidth);
+    const responsive = Math.max(.65, Math.min(1, size / 640));
+    const zoom = Math.max(1, Math.min(6, options.zoom || 1));
+    const detail = 1 + Math.log2(zoom) * .12;
+    const base = level === "county" ? 1 : level === "village" ? .55 : .75;
+    const width = Math.min(1.6, base * responsive * detail + (swingStatus ? .25 * responsive : 0));
+    if (selected) return {...style, outerColor:"#ffffff", innerColor:"#17212b",
+      outerWidth:Math.min(2.2, width + 1, Number.isFinite(options.featurePixels) ? Math.max(.8,Math.min(1.8,options.featurePixels * .14)) : 2.2), innerWidth:Math.min(1.1, width + .15, Number.isFinite(options.featurePixels) ? Math.max(.4,Math.min(.9,options.featurePixels * .07)) : 1.1),
+      striped:false, dash:[], interaction:true};
+    return {...style, outerWidth:width, innerWidth:width * .4,
+      ...(style.dash ? {dash:style.dash.map(n=>n * responsive)} : {})};
+  }
+
+  function legacyMapBoundaryStyle(level, selected, swingStatus = null, theme = "light", options = {}) {
     const dark = theme === "dark";
     const styles = dark ? {
       county: { outerColor: "rgba(231,239,248,0.95)", innerColor: "rgba(23,34,47,0.98)", outerWidth: 3.2, innerWidth: 1.3 },
@@ -568,7 +585,7 @@
     };
   }
 
-  function observationRegionFill(region, swingRecord, options = {}) {
+  function observationRegionBaseFill(region, swingRecord, options = {}) {
     const dark = options.theme === "dark";
     const selected = Boolean(options.selected);
     const hover = Boolean(options.hover);
@@ -576,22 +593,22 @@
     const mayorMetrics = options.mayorMetrics || null;
     const councilMetrics = options.councilMetrics || null;
 
-    if (selected || hover) {
-      return {
-        fill: dark ? "#fbbf24" : "#d97706",
-        badge: selected ? "已選取" : "游標懸停",
-        statusKey: "selected",
-        intensity: 1,
-        isHighlighted: true,
-      };
+    if (!["mayor", "council"].includes(mode)) return {fill:dark ? "#737373" : "#d4d4d4", badge:"行政區定位", statusKey:"default", intensity:0.25, isHighlighted:false};
+    if(mode === "council" && Object.prototype.hasOwnProperty.call(options,"councilLayerRecord")) {
+      const record=options.councilLayerRecord;
+      if(!record || !Number.isFinite(record.value))return {fill:dark?"#737373":"#d4d4d4",badge:record?.reason||"無法唯一對照／未提供資料",statusKey:"default",intensity:0.25,isHighlighted:false};
+      const v=record.value,competition=options.councilLayer==="competition";
+      if(!competition && v<0)return {fill:dark?"#a21caf":"#d946ef",badge:record.label,statusKey:"negative",intensity:1,isHighlighted:false};
+      const i=competition?(v<=1?3:v<=1.5?2:v<=2?1:0):(v<=1?0:v<=3?1:v<=6?2:3);
+      return {fill:(dark?["#fbbf24","#d97706","#9a3412","#4c315b"]:["#9a3412","#d97706","#fcd34d","#e9dcf0"])[i],badge:record.label,statusKey:"metric",intensity:1,isHighlighted:false};
     }
-
     // 模式 1: 議員模式 (Councilor Mode)
     if (mode === "council") {
+      if (region?.level === "village") return {fill:dark ? "#737373" : "#d4d4d4", badge:"議員行政區定位", statusKey:"default", intensity:0.25, isHighlighted:false};
       if (region?.level === "county") {
         // 全國層：淺灰底色，可點擊
         return {
-          fill: dark ? "#5b4266" : "#dccbe3",
+          fill: dark ? "#737373" : "#d4d4d4",
           badge: "點選進入縣市選區",
           statusKey: "county_base",
           intensity: 0.3,
@@ -600,7 +617,7 @@
       }
       // 縣市層（鄉鎮市區）：比對其所屬之區域議員選區
       if (councilMetrics && Array.isArray(councilMetrics.districts)) {
-        const matchingDistrict = councilMetrics.districts.find(d => {
+        const matchingDistricts = councilMetrics.districts.filter(d => {
           if (d.county !== region.county || (d.office_kind || d.scope) !== "regional") return false;
           // 比對 townships 或 partial_townships
           const locs = options.councilorLocations || [];
@@ -612,7 +629,9 @@
           return false;
         });
 
-        if (matchingDistrict) {
+        const matchingDistrict = matchingDistricts.length === 1 ? matchingDistricts[0] : null;
+        const location = matchingDistrict && (options.councilorLocations || []).find(l => l.district_id === matchingDistrict.map_district_id);
+        if (matchingDistrict && !(location?.partial_townships || []).includes(region.township || region.label)) {
           const comp = matchingDistrict.comparability?.["2022_2026"];
           const m = matchingDistrict.margin?.["2022"];
           if (comp === "redistricted" || !m || m.uncontested) {
@@ -640,58 +659,28 @@
         }
       }
       return {
-        fill: dark ? "#4c315b" : "#e9dcf0",
-        badge: "議員選區",
+        fill: dark ? "#737373" : "#d4d4d4",
+        badge: "行政區定位（無可對照選區指標）",
         statusKey: "default",
         intensity: 0.25,
         isHighlighted: false,
       };
     }
 
-    // 模式 2: 縣市長模式 (Mayor Mode)
-    if (region?.level === "county" && mayorMetrics && Array.isArray(mayorMetrics.counties)) {
-      const c = mayorMetrics.counties.find(x => x.county === region.county);
-      if (c) {
-        if (c.band === "close_swing") {
-          return { fill: dark ? "#fbbf24" : "#9a3412", badge: "核心激戰", statusKey: "close_swing", intensity: 1, isHighlighted: false };
-        }
-        if (c.band === "close_only") {
-          return { fill: dark ? "#d97706" : "#d97706", badge: "傳統激戰", statusKey: "close_only", intensity: 0.75, isHighlighted: false };
-        }
-        if (c.band === "swing_only") {
-          return { fill: dark ? "#9a3412" : "#fcd34d", badge: "一般搖擺", statusKey: "swing_only", intensity: 0.5, isHighlighted: false };
-        }
-        return { fill: dark ? "#4c315b" : "#e9dcf0", badge: "穩定領先", statusKey: "solid", intensity: 0.25, isHighlighted: false };
-      }
-    }
+    // Fixed 2022 margin scale; historical party turnover is a separate metric.
+    const pct = region?.level === "county"
+      ? mayorMetrics?.counties?.find(c => c.county === region.county)?.margin_2022_pct
+      : swingRecord?.marginPct;
+    if (pct == null || !Number.isFinite(pct)) return {fill:"stripe", badge:"2022 差距資料不足", statusKey:"missing", intensity:0.2, isHighlighted:false};
+    const i = pct <= 1 ? 0 : pct <= 3 ? 1 : pct <= 6 ? 2 : 3;
+    return {fill:(dark ? ["#fbbf24","#d97706","#9a3412","#4c315b"] : ["#9a3412","#d97706","#fcd34d","#e9dcf0"])[i], badge:`2022 票差占選舉人數 ${pct}%`, statusKey:["tight","close","normal","loose"][i], intensity:1-i*0.25, isHighlighted:false};
+  }
 
-    // 縣市層內：鄉鎮或村里
-    const statusKey = swingRecord?.quadrantStatus || swingRecord?.status || null;
-    const isBellwether = Boolean(swingRecord?.isBellwether);
-
-    if (isBellwether) {
-      return { fill: dark ? "#d97706" : "#d97706", badge: "🎯 指標村里", statusKey: "bellwether", intensity: 0.8, isHighlighted: false };
-    }
-    if (statusKey === "close_swing") {
-      return { fill: dark ? "#fbbf24" : "#9a3412", badge: "核心激戰", statusKey: "close_swing", intensity: 1, isHighlighted: false };
-    }
-    if (statusKey === "close_only") {
-      return { fill: dark ? "#d97706" : "#d97706", badge: "傳統激戰", statusKey: "close_only", intensity: 0.75, isHighlighted: false };
-    }
-    if (statusKey === "swing_only" || statusKey === "swing") {
-      return { fill: dark ? "#9a3412" : "#fcd34d", badge: "一般搖擺", statusKey: "swing_only", intensity: 0.5, isHighlighted: false };
-    }
-    if (statusKey === "solid") {
-      return { fill: dark ? "#4c315b" : "#e9dcf0", badge: "穩定領先", statusKey: "solid", intensity: 0.25, isHighlighted: false };
-    }
-
-    return {
-      fill: dark ? "#4c315b" : "#e9dcf0",
-      badge: region?.label || "",
-      statusKey: "default",
-      intensity: 0.2,
-      isHighlighted: false,
-    };
+  function observationRegionFill(region, swingRecord, options = {}) {
+    const result = observationRegionBaseFill(region, swingRecord, options);
+    if (!options.selected && !options.hover) return result;
+    // Interaction must never impersonate a metric bin or erase a missing-data pattern.
+    return {...result, isHighlighted:true};
   }
 
   const MAYOR_DEFAULT_SWING_YEARS = [2014, 2018, 2022];

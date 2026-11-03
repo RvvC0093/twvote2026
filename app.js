@@ -1,5 +1,7 @@
 "use strict";
 
+const product = globalThis.ElectionProductProfile;
+if (!product) throw new Error("產品設定未載入");
 const MANIFEST_PATH = "data/manifest.json";
 const HIERARCHY_SEARCH_LIMIT = 200;
 const core = globalThis.ElectionViewerCore;
@@ -122,6 +124,7 @@ function updateMapThemeControls() {
 
 function toggleMapTheme() {
   state.mapTheme = state.mapTheme === "dark" ? "light" : "dark";
+  try { localStorage.setItem("twvote:theme", state.mapTheme); } catch (_) {}
   updateMapThemeControls();
   renderMap();
   renderObservationMap();
@@ -239,51 +242,56 @@ const swingCache = new Map();
 const swingScopeCache = new Map();
 const swingLoadPromises = new Map();
 
+let historySummaryIndexPromise = null;
+function loadHistorySummaryIndex() {
+  if (!historySummaryIndexPromise) {
+    const pointer = state.manifest.history_summary;
+    historySummaryIndexPromise = fetchJson(`data/${pointer.file}`, null, pointer.sha256).then(index => {
+      if (index.schema !== "history-summary-index-v1") throw new Error("歷史摘要版本不符");
+      return index;
+    }).catch(error => { historySummaryIndexPromise = null; throw error; });
+  }
+  return historySummaryIndexPromise;
+}
+function reviveSummary(value) {
+  if (!value || typeof value !== "object") return value;
+  if (value.$map) return new Map(value.$map.map(([key,v])=>[key,reviveSummary(v)]));
+  if (value.$set) return new Set(value.$set.map(reviveSummary));
+  if (Array.isArray(value)) return value.map(reviveSummary);
+  return Object.fromEntries(Object.entries(value).map(([key,v])=>[key,reviveSummary(v)]));
+}
 async function ensureCountySwingData(countyName) {
   if (!countyName) return null;
-  const locationCount = observation.manifest?.councilor_locations?.length || 0;
-  const currentBaseline = observation.yearBaseline || "default";
+  const baseline = observation.yearBaseline || "default";
+  const threshold = observation.swingMarginThreshold || 0.03;
+  const key = `${countyName}:${baseline}:${threshold}`;
   const cached = swingScopeCache.get(countyName);
-  if (cached && cached.locationCount === locationCount && cached.yearBaseline === currentBaseline) {
-    return { villages: cached.villages, scopes: cached.scopes, bellwethers: cached.bellwethers };
-  }
-  if (swingLoadPromises.has(countyName)) return swingLoadPromises.get(countyName);
-  const entry = historyPointer?.counties.find((county) => county.name === countyName);
-  if (!entry) return null;
+  if (cached?.key === key) return cached;
+  if (swingLoadPromises.has(key)) return swingLoadPromises.get(key);
   const task = (async () => {
     try {
-      let shard = historyCache.get(countyName);
-      if (!shard) {
-        shard = await fetchMayorHistoryForSwing(entry, new AbortController().signal);
-      }
-      const areas = shard?.areas || [];
-      const swingOpts = {
-        cycleYears: currentBaseline === "extended" ? core.MAYOR_EXTENDED_SWING_YEARS : core.MAYOR_DEFAULT_SWING_YEARS,
-        marginThreshold: observation.swingMarginThreshold || 0.03,
-      };
-      const villages = core.analyzeMayorSwing(areas, swingOpts);
-      const scopes = core.analyzeMayorSwingScopes(areas, observation.manifest?.councilor_locations || [], swingOpts);
-      const bellwethers = core.analyzeBellwetherVillages(areas, swingOpts);
-      if (bellwethers && bellwethers.size > 0) {
-        bellwethers.forEach((val, key) => {
-          const v = villages.get(key);
-          if (v) {
-            v.isBellwether = true;
-            v.mae = val.mae;
-          }
-        });
-      }
-      swingCache.set(countyName, villages);
-      swingScopeCache.set(countyName, { locationCount, scopes, villages, bellwethers, yearBaseline: currentBaseline });
-      return { villages, scopes, bellwethers };
-    } catch (error) {
-      return null;
-    } finally {
-      swingLoadPromises.delete(countyName);
-    }
+      const index = await loadHistorySummaryIndex();
+      const pointer = index.counties[countyName]?.variants[`${baseline}:${threshold}`];
+      if (!pointer) throw new Error("此範圍沒有歷史摘要");
+      const raw = await fetchJson(`data/${pointer.file}`, null, pointer.sha256);
+      if (raw.schema !== "history-swing-summary-v1" || raw.county !== countyName) throw new Error("歷史摘要範圍不符");
+      const data = {...reviveSummary(raw), key};
+      swingScopeCache.delete(countyName); swingScopeCache.set(countyName,data); swingCache.set(countyName,data.villages);
+      while (swingScopeCache.size > 3) { const old = swingScopeCache.keys().next().value; swingScopeCache.delete(old); swingCache.delete(old); }
+      return data;
+    } catch(error) { return null; }
+    finally { swingLoadPromises.delete(key); }
   })();
-  swingLoadPromises.set(countyName, task);
+  swingLoadPromises.set(key,task);
   return task;
+}
+async function loadLocalHistorySummary(names, signal = null) {
+  const index = await loadHistorySummaryIndex();
+  const pointer = index.counties[names[0]]?.local;
+  if (!pointer) throw new Error("此範圍沒有歷史摘要");
+  const data = await fetchJson(`data/${pointer.file}`, signal, pointer.sha256);
+  if (data.schema !== "history-local-summary-v1" || data.county !== names[0]) throw new Error("歷史摘要範圍不符");
+  return data.areas[JSON.stringify(names)] || [2014,2018,2022].map(year=>({year,error:"資料不足，無法繪圖。"}));
 }
 
 async function ensureCountySwingAnalysis(countyName) {
@@ -758,6 +766,7 @@ function element(tag, className, text) {
 }
 
 function clear(node) {
+  node.querySelectorAll?.(".collapsible-card").forEach(card => card.dispose?.());
   while (node.firstChild) node.removeChild(node.firstChild);
 }
 
@@ -867,11 +876,29 @@ async function loadCountyNews(countyName) {
   }
 }
 
-async function fetchJson(path, signal = null, expectedSha256 = null) {
+let dataRepository = null;
+function fetchJson(path, signal = null, expectedSha256 = null) {
+  if (!dataRepository) dataRepository = new globalThis.ElectionDataRepository.DataRepository(fetchJsonDirect);
+  return dataRepository.loadResource({release: state.manifest?.source?.database_sha256 || "bootstrap",path,sha256:expectedSha256,signal});
+}
+async function fetchJsonDirect(path, signal = null, expectedSha256 = null) {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  signal?.addEventListener("abort", abort, {once:true});
+  let timedOut = false;
+  const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 15000);
+  try { return await fetchJsonUnchecked(path, controller.signal, expectedSha256); }
+  catch (error) { if (timedOut) throw new Error("連線逾時，請重試"); if (error instanceof SyntaxError) throw new Error("資料不是有效 JSON，請重試或重新整理"); throw error; }
+  finally { clearTimeout(timeout); signal?.removeEventListener("abort", abort); }
+}
+async function fetchJsonUnchecked(path, signal = null, expectedSha256 = null) {
   const localPath = core.localDataPath(path);
-  const options = { cache: "no-cache" };
+  const options = { cache: expectedSha256 ? "default" : "no-cache" };
   if (signal) options.signal = signal;
-  const response = await fetch(localPath, options);
+  let response;
+  try { response = await fetch(expectedSha256 ? `${localPath}?sha256=${expectedSha256}` : localPath, options); }
+  catch (error) { if (error.name === "AbortError") throw error; throw new Error("無法連線或下載中斷，請檢查網路後重試"); }
   if (!response.ok) throw new Error(`無法載入本地檔案 ${localPath}（${response.status}）`);
   if (expectedSha256 !== null) {
     if (!/^[a-f0-9]{64}$/.test(expectedSha256)) throw new Error("資料 SHA-256 格式錯誤");
@@ -880,7 +907,7 @@ async function fetchJson(path, signal = null, expectedSha256 = null) {
     if (!globalThis.crypto?.subtle) throw new Error("目前連線環境無法驗證資料，請使用本機 loopback 或安全連線");
     const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)))
       .map((value) => value.toString(16).padStart(2, "0")).join("");
-    if (digest !== expectedSha256) throw new Error("歷史資料 SHA-256 不符");
+    if (digest !== expectedSha256) throw Object.assign(new Error("資料版本不一致，請重新整理以取得新版本（SHA-256 不符）"), {code:"DATA_VERSION"});
     return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
   }
   return response.json();
@@ -1005,6 +1032,11 @@ function mapResultColor(result) {
 }
 
 function resizeCanvas() {
+  // The observation shell has no legacy map-canvas. Resize its active map instead.
+  if (!mapCanvas) {
+    if (typeof drawObservationMap === "function") drawObservationMap();
+    return;
+  }
   const rectangle = mapCanvas.getBoundingClientRect();
   const ratio = Math.min(window.devicePixelRatio || 1, 2);
   state.viewport = { width: Math.max(1, rectangle.width), height: Math.max(1, rectangle.height), pixelRatio: ratio };
@@ -2281,61 +2313,68 @@ async function initialize() {
       presidentHistoryPointer = manifest.president_history;
     }
 
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get("theme") === "light") {
-      state.mapTheme = "light";
-      updateMapThemeControls();
-    }
+    const urlTheme = new URLSearchParams(window.location.search).get("theme");
+    let savedTheme; try { savedTheme = localStorage.getItem("twvote:theme"); } catch (_) {}
+    state.mapTheme = ["light","dark"].includes(urlTheme) ? urlTheme : ["light","dark"].includes(savedTheme) ? savedTheme : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    updateMapThemeControls();
 
-    // Fast首屏管線：county.topo.json (201 KB) + mayor-metrics.json (~4 KB)
-    const countyTopologyPromise = fetchJson(`data/${manifest.geography.county_topology.file}`, null, manifest.geography.county_topology.sha256);
-    const obsPointer = manifest.observation_2026;
-    if (obsPointer) {
-      await initializeObservation(obsPointer);
-    }
-
-    const countyTopology = await countyTopologyPromise;
-    state.topology = countyTopology;
-    const decoded = core.decodeTopology(countyTopology);
-    state.features = decoded.features;
-    observation.geography = core.buildObservationGeography(decoded.features);
-    state.nationalBounds = decoded.primaryBounds;
-    state.nationalFullBounds = decoded.fullBounds;
-    state.bounds = decoded.primaryBounds;
-    state.fullBounds = decoded.fullBounds;
-
-    renderObservationMap();
-
-    // 背景延後載入鄉鎮拓撲 (town.topo.json, 751 KB)
-    fetchJson(`data/${manifest.geography.town_topology.file}`, null, manifest.geography.town_topology.sha256).then((townTopo) => {
-      const townDecoded = core.decodeTopology(townTopo);
-      const townGeography = core.buildObservationGeography(townDecoded.features);
-      observation.townGeography = townGeography;
-      // The county topology is intentionally small for first paint. Add the
-      // deferred township/village geometry to the same interface used by the
-      // map before redrawing any county the user may already have opened.
-      observation.geography = {
-        counties: observation.geography?.counties || [],
-        townships: townGeography.townships,
-        villages: observation.villageGeography?.villages || (() => []),
-      };
-      observation.mapError = null;
-      if (observation.district && !observation.township) renderObservationDistrict(observation.district);
-      if (observation.county) renderObservationNavigation();
-      else renderObservationMap();
-    }).catch((error) => {
-      observation.mapError = "鄉鎮圖資載入失敗；請重新整理頁面後再試。";
+    // Map and the active office summary have independent loading pipelines.
+    const countyPipeline = fetchJson(`data/${manifest.geography.county_topology.file}`, null, manifest.geography.county_topology.sha256).then(async countyTopology => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+      state.topology = countyTopology;
+      const decoded = core.decodeTopology(countyTopology);
+      state.features = decoded.features;
+      observation.geography = core.buildObservationGeography(decoded.features);
+      state.nationalBounds = decoded.primaryBounds; state.nationalFullBounds = decoded.fullBounds;
+      state.bounds = decoded.primaryBounds; state.fullBounds = decoded.fullBounds;
       renderObservationMap();
     });
+    const obsPipeline = initializeObservation(manifest.observation_2026);
+    const initialization = await Promise.allSettled([countyPipeline, obsPipeline]);
+    const failure = initialization.find(result => result.status === "rejected");
+    if (failure) throw failure.reason;
 
     // 處理初始 hash 路由
-    handleHashRoute();
+    await handleHashRoute();
     window.addEventListener("hashchange", handleHashRoute);
+    window.dispatchEvent(new Event("observation-ready"));
   } catch (error) {
     if (mapLoading) mapLoading.classList.add("hidden");
-    observation.mapError = "圖資未能載入；請使用名稱清單。";
+    observation.mapError = "網站資料未能載入，請重新載入。";
     renderObservationMap();
+    const host = document.getElementById("contest-board-container");
+    host.classList.remove("hidden"); observationDetail.classList.add("hidden"); clear(host);
+    host.appendChild(element("p", "observation-error", `網站資料載入失敗：${error.message}`));
+    const retry = element("button", "detail-card-action", "重新載入網站"); retry.type="button"; retry.addEventListener("click",()=>window.location.reload()); host.appendChild(retry);
+    document.getElementById("observation-inspector").dataset.detent="expanded";
   }
+}
+
+const townGeographyCache = new Map(), townGeographyPending = new Map();
+let townIndexPromise = null;
+function loadedTownships(county) { return townGeographyCache.get(county)?.townships(county) || []; }
+function loadTownGeography(county = observation.county) {
+  if (!county) return Promise.resolve();
+  if (townGeographyCache.has(county)) { const value=townGeographyCache.get(county); townGeographyCache.delete(county); townGeographyCache.set(county,value); return Promise.resolve(); }
+  if (townGeographyPending.has(county)) return townGeographyPending.get(county);
+  const task = (async () => {
+    if (!townIndexPromise) { const pointer=state.manifest.geography.town_index; townIndexPromise=fetchJson(`data/${pointer.file}`,null,pointer.sha256).then(index=>{if(index.schema!=="town-shards-v1")throw new Error("鄉鎮索引版本不符");return index;}).catch(error=>{townIndexPromise=null;throw error;}); }
+    const index=await townIndexPromise, entry=Object.values(index.counties).find(c=>c.name===county);
+    if (!entry) throw new Error("此縣市沒有鄉鎮圖資");
+    const pointer=entry.resource, topology=await fetchJson(`data/${pointer.file}`,null,pointer.sha256);
+    await new Promise(resolve=>setTimeout(resolve,0));
+    const decoded=core.decodeTopology(topology);
+    if(decoded.features.length!==pointer.featureCount)throw new Error("鄉鎮圖資數量不符");
+    townGeographyCache.set(county,core.buildObservationGeography(decoded.features));
+    while(townGeographyCache.size>3) { const oldest=[...townGeographyCache.keys()].find(key=>key!==observation.county); townGeographyCache.delete(oldest); }
+    observation.geography={counties:observation.geography?.counties||[],townships:loadedTownships,villages:loadedVillages};
+    if (observation.county===county) {
+      observation.mapError=null;
+      if(observation.district&&!observation.township)refreshObservationDetail(()=>renderObservationDistrict(observation.district));
+      renderObservationNavigation(); renderObservationMap();
+    }
+  })().catch(error=>{if(observation.county===county){observation.mapError="鄉鎮圖資載入失敗，請重試。";showRouteError(error);renderObservationMap();}}).finally(()=>townGeographyPending.delete(county));
+  townGeographyPending.set(county,task);return task;
 }
 
 // The observation view has its own request generation and clears stale data first.
@@ -2343,7 +2382,7 @@ const observation = {
   geography: null, mapError: null, countyError: null, mapKey: "", mapRegions: [], mapZoom: 1, mapPan: [0, 0], mapHover: null, mapPointers: new Map(), mapGesture: null, mapFull: false, renderGeneration: 0, manifest: null, shard: null, county: null, office: null, township: null, district: null, village: null, swingAnalysis: null, swingData: null, nationalSwing: new Map(), nationalSwingReady: false, nationalSwingFailureCount: 0, nationalSwingPromise: null, controller: null, gate: new core.RequestGate(), cache: new core.BoundedLruCache(3),
   cardOpenState: {}, cardStateDistrict: null,
   activeFilters: new Set(["close_swing", "close_only"]),
-  councilorLens: "councilor",
+  councilorLens: "councilor", councilMapLayer: "competition",
   swingMarginThreshold: 0.03,
   yearBaseline: "default",
 };
@@ -2443,10 +2482,30 @@ function swingDisplayLabel(record, areaLabel = "選區") {
   return `${areaLabel}本級未達搖擺條件`;
 }
 
+let retainedObservationCards = null;
+function refreshObservationDetail(render) {
+  const scroll = observationDetail.scrollTop, focused = document.activeElement;
+  const headingFocused=observationDetail.contains(focused) && focused.matches(".hero-summary h2");
+  const retained = new Map();
+  observationDetail.querySelectorAll(".collapsible-card").forEach(card => {
+    if (["ready", "loading", "error"].includes(card.dataset.state)) { retained.set(card.dataset.key, card); card.remove(); }
+  });
+  retainedObservationCards = retained;
+  try { render(); }
+  finally { retainedObservationCards = null; for (const card of retained.values()) card.dispose?.(); }
+  observationDetail.scrollTop = scroll;
+  if (focused?.isConnected && observationDetail.contains(focused)) focused.focus({preventScroll:true});
+  else if(headingFocused && document.activeElement===document.body) {const heading=observationDetail.querySelector(".hero-summary h2");if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}}
+}
+
 function createCollapsibleCard({ id, icon = "", title = "", previewPills = [], defaultOpen = false, contentFn }) {
+  const key = JSON.stringify([state.manifest?.source?.database_sha256, observation.office, observation.county, observation.district, observation.township, observation.village, observation.councilorLens, observation.yearBaseline, observation.swingMarginThreshold, id]);
+  if (retainedObservationCards?.has(key)) { const card=retainedObservationCards.get(key); retainedObservationCards.delete(key); return card; }
   const card = element("div", "collapsible-card");
   card.id = `card-${id}`;
   card.dataset.cardId = id;
+  card.dataset.key = key;
+  card.dataset.state = "idle";
 
   if (observation.cardOpenState[id] === undefined) {
     observation.cardOpenState[id] = defaultOpen;
@@ -2456,9 +2515,9 @@ function createCollapsibleCard({ id, icon = "", title = "", previewPills = [], d
   const accentBar = element("div", "card-accent-bar");
   card.appendChild(accentBar);
 
-  const header = element("div", "card-header");
-  header.setAttribute("role", "button");
-  header.tabIndex = 0;
+  const header = element("button", "card-header");
+  header.type = "button";
+  header.id = `card-header-${id}`;
   header.setAttribute("aria-expanded", String(isOpen));
   header.setAttribute("aria-controls", `card-body-${id}`);
 
@@ -2486,24 +2545,48 @@ function createCollapsibleCard({ id, icon = "", title = "", previewPills = [], d
 
   const body = element("div", "card-body");
   body.id = `card-body-${id}`;
-  if (typeof contentFn === "function") contentFn(body);
+  let controller = null, attempt = 0, disposed = false, slowTimer = null;
+  card.dispose = () => { disposed = true; attempt++; controller?.abort(); clearTimeout(slowTimer); };
+  function buildContent() {
+    if (disposed || ["loading", "ready", "empty"].includes(card.dataset.state)) return;
+    const token = ++attempt;
+    controller = new AbortController();
+    clear(body); card.dataset.state = "loading"; body.setAttribute("aria-busy", "true");
+    const status = element("p", "observation-note", "正在載入…"); body.appendChild(status);
+    slowTimer = setTimeout(() => { if (card.dataset.state === "loading" && token === attempt) status.textContent = "載入比平常久；可先收合或切換選區，稍後重試。"; }, 8000);
+    const context = {signal: controller.signal, isCurrent: () => !disposed && token === attempt && !controller.signal.aborted};
+    // Existing synchronous cards can render directly; asynchronous cards return a promise.
+    let result;
+    try { result = contentFn?.(body, context); }
+    catch(error) { fail(error); return; }
+    Promise.resolve(result).then(value => {
+      if (!context.isCurrent()) return;
+      status.remove(); body.removeAttribute("aria-busy"); clearTimeout(slowTimer);
+      card.dataset.state = value === "empty" || !body.childNodes.length ? "empty" : "ready";
+      if (card.dataset.state === "empty" && !body.childNodes.length) body.appendChild(element("p", "observation-note", "此範圍沒有可用資料。"));
+    }, fail);
+    function fail(error) {
+      if (!context.isCurrent()) return;
+      clearTimeout(slowTimer); body.removeAttribute("aria-busy"); card.dataset.state="error"; clear(body);
+      body.appendChild(element("p", "observation-error", `資料載入失敗：${error.message || "請重試"}`));
+      const retry=element("button", "detail-card-action", "重試此卡片"); retry.type="button"; retry.addEventListener("click",buildContent); body.appendChild(retry);
+    }
+  }
+  body.hidden = !isOpen;
   card.appendChild(body);
+  if (isOpen) buildContent();
 
   function toggle() {
     const next = !observation.cardOpenState[id];
     observation.cardOpenState[id] = next;
     header.setAttribute("aria-expanded", String(next));
     triggerText.textContent = next ? "收合" : "展開詳情";
+    body.hidden = !next;
+    if (next) buildContent();
     card.classList.toggle("open", next);
   }
 
   header.addEventListener("click", toggle);
-  header.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      toggle();
-    }
-  });
 
   if (isOpen) card.classList.add("open");
   return card;
@@ -2748,7 +2831,7 @@ function loadNationalSwingSummary() {
 function appendObservationSwingSummary(parent) {
   const section = element("section", "swing-summary");
   section.appendChild(element("h3", "", "歷屆搖擺區域"));
-  section.appendChild(element("p", "swing-summary-note", "依 2010、2014、2018、2022 四屆首長選舉得票判定政黨輪替頻率；外框同步標示涵蓋搖擺村里的行政區與完整議員選區。激戰標記為 2022 催票率差距 ≤3% 之競爭熱區。議員選區係依 2026 公告之完整鄉鎮彙整歷屆首長開票趨勢。"));
+  section.appendChild(element("p", "swing-summary-note", product.council ? "依四屆首長得票與公告議員選區範圍對照搖擺區域。" : "依 2010、2014、2018、2022 四屆縣市長選舉得票觀察政黨輪替；激戰標記使用 2022 催票率差距 ≤3%。歷史結果不是 2026 開票或預測。"));
 
   if (!observation.county) {
     if (!historyPointer) {
@@ -2757,7 +2840,7 @@ function appendObservationSwingSummary(parent) {
       return;
     }
     if (!observation.nationalSwingReady) {
-      section.appendChild(element("p", "swing-summary-loading", "正在計算全國縣市、鄉鎮市區與議員選區…"));
+      section.appendChild(element("p", "swing-summary-loading", "正在計算全國縣市與鄉鎮市區…"));
       parent.appendChild(section);
       return;
     }
@@ -2774,7 +2857,7 @@ function appendObservationSwingSummary(parent) {
     grid.append(
       observationMetric("搖擺縣市", `${c.direct} / ${c.comparable}`, `四屆可比較 ${c.comparable} / ${c.total} · 含搖擺村里 ${c.containing} 市 · 激戰 ${c.close} 市`),
       observationMetric("搖擺鄉鎮市區", `${t.direct} / ${t.comparable}`, `四屆可比較 ${t.comparable} / ${t.total} · 含搖擺村里 ${t.containing} 區 · 激戰 ${t.close} 區`),
-      observationMetric("搖擺議員選區", `${d.direct} / ${supportedDistricts}`, `${d.containing} 個含搖擺村里 · 四屆可比較 ${supportedDistricts} / ${completeScopeDistricts.length} 個完整地域範圍`),
+      ...(product.council ? [observationMetric("搖擺議員選區", `${d.direct} / ${supportedDistricts}`, `${d.containing} 個含搖擺村里 · 四屆可比較 ${supportedDistricts} / ${completeScopeDistricts.length} 個完整地域範圍`)] : []),
     );
     section.appendChild(grid);
     const countiesWithSwing = countyRecords.filter((record) => record.displayStatus).sort((a, b) => a.county.localeCompare(b.county, "zh-Hant"));
@@ -2790,7 +2873,7 @@ function appendObservationSwingSummary(parent) {
       section.appendChild(list);
     } else section.appendChild(element("p", "swing-summary-note", "目前沒有縣市達到本級或所含村里搖擺條件。"));
     if (observation.nationalSwingFailureCount) section.appendChild(element("p", "observation-caution", `${observation.nationalSwingFailureCount} 個縣市的歷史資料載入或驗證失敗；以上全國統計只涵蓋已成功核對的縣市。`));
-    if (incompleteScopeDistricts || incompleteHistoryDistricts) section.appendChild(element("p", "swing-summary-note", `${incompleteScopeDistricts} 個議員選區含未能完整機讀的部分鄉鎮範圍；另有 ${incompleteHistoryDistricts} 區的首長歷史資料未涵蓋全部四屆。這些選區不列入本級四屆變化判定。`));
+    if (product.council && (incompleteScopeDistricts || incompleteHistoryDistricts)) section.appendChild(element("p", "swing-summary-note", `${incompleteScopeDistricts} 個議員選區含未能完整機讀的部分鄉鎮範圍；另有 ${incompleteHistoryDistricts} 區的首長歷史資料未涵蓋全部四屆。這些選區不列入本級四屆變化判定。`));
     parent.appendChild(section);
     return;
   }
@@ -2823,7 +2906,7 @@ function appendObservationSwingSummary(parent) {
     grid.append(
       observationMetric("本級勝選黨籍變化", record?.isComplete ? `${record.partyChanges} 次` : "資料不足", record?.isSwing ? "本鄉鎮達搖擺條件" : "超過 2 次才列本級搖擺"),
       observationMetric("搖擺村里", `${record?.swingVillageCount || 0} 個`, `其中激戰村里 ${record?.closeSwingVillageCount || 0} 個`),
-      observationMetric("搖擺議員選區", `${directDistricts} / ${comparableDistricts}`, `${nestedDistricts} 區含搖擺村里 · 激戰 ${closeDistricts} 區 · 依公告範圍對照`),
+      ...(product.council ? [observationMetric("搖擺議員選區", `${directDistricts} / ${comparableDistricts}`, `${nestedDistricts} 區含搖擺村里 · 激戰 ${closeDistricts} 區 · 依公告範圍對照`)] : []),
     );
   } else {
     const comparableTownships = visibleTownships.filter((record) => record.isComplete).length;
@@ -2836,11 +2919,11 @@ function appendObservationSwingSummary(parent) {
     grid.append(
       observationMetric("縣市本級勝選黨籍變化", countyRecord?.isComplete ? `${countyRecord.partyChanges} 次` : "資料不足", countyRecord?.isSwing ? "符合搖擺條件" : `區內搖擺村里 ${countyRecord?.swingVillageCount || 0} 個`),
       observationMetric("搖擺鄉鎮市區", `${directTownships} / ${comparableTownships}`, `四屆可比較 ${comparableTownships} / ${visibleTownships.length} · ${nestedTownships} 個含搖擺村里`),
-      observationMetric("搖擺議員選區", `${directDistricts} / ${comparableDistricts}`, `四屆可比較 ${comparableDistricts} 區 · ${swingDistricts} 區含搖擺村里 · 激戰 ${closeDistricts} 區`),
+      ...(product.council ? [observationMetric("搖擺議員選區", `${directDistricts} / ${comparableDistricts}`, `四屆可比較 ${comparableDistricts} 區 · ${swingDistricts} 區含搖擺村里 · 激戰 ${closeDistricts} 區`)] : []),
     );
   }
   section.appendChild(grid);
-  if (incompleteDistrictScopes || incompleteDistrictHistories) {
+  if (product.council && (incompleteDistrictScopes || incompleteDistrictHistories)) {
     section.appendChild(element("p", "swing-summary-note", `${incompleteDistrictScopes} 個相關議員選區含部分鄉鎮範圍，不能完整加總；另有 ${incompleteDistrictHistories} 個完整範圍選區缺少四屆歷史資料。這些選區不列入本級黨籍變化判定。`));
   }
 
@@ -2859,6 +2942,7 @@ function appendObservationSwingSummary(parent) {
     } else section.appendChild(element("p", "swing-summary-note", "目前沒有鄉鎮市區達到本級或所含村里搖擺條件。"));
   }
 
+  if (!product.council) { parent.appendChild(section); return; }
   const markedDistricts = visibleDistricts.filter((record) => record.scopeComplete && record.displayStatus).sort((a, b) => a.districtId.localeCompare(b.districtId, "zh-Hant"));
   if (!observation.township) section.appendChild(element("h4", "", "搖擺議員選區與所含村里"));
   else section.appendChild(element("h4", "", "涵蓋此鄉鎮的搖擺議員選區與所含村里"));
@@ -2893,7 +2977,7 @@ function observationDistrictLabel(district) {
   return district.name + (scope ? ` · ${scope}` : "");
 }
 function observationScopedDistricts() {
-  return observation.shard?.districts.filter(d => (!observation.office || d.office === observation.office) && (!observation.township || (()=>{
+  return observation.shard?.districts.filter(d => product.allowsOffice(d.office) && (!observation.office || d.office === observation.office) && (!observation.township || (()=>{
     if (["metro_mayor", "county_mayor"].includes(d.office)) return true;
     const location = observationDistrictLocation(d);
     return location ? location.scope === "regional" && (location.townships.includes(observation.township) || location.partial_townships?.includes(observation.township)) : d.township === observation.township;
@@ -2912,68 +2996,30 @@ function observationOverview() {
   observationDetail.append(element("p", "eyebrow", observation.county ? "目前觀察" : "2026 / 11 / 28"), element("h2", "", observation.township || observation.county || "從一個縣市開始"));
   const row = element("div", "observation-metrics");
   const scoped = observation.shard ? observationScopedDistricts() : null;
-  const entry = scoped ? {candidate_count:scoped.reduce((total,d)=>total+d.candidates.length,0),district_count:scoped.length} : m;
-  row.append(observationMetric("登記候選人數", `${observationNumber(entry.candidate_count)} 人`, `正式審定名冊 · 查核 ${m.as_of}`), observationMetric("名冊所列選區", `${observationNumber(entry.district_count)} 區`, observation.office ? "目前公職的名冊選區" : "同一地點的不同公職分別計算"));
+  const entry = scoped ? {candidate_count:scoped.reduce((total,d)=>total+d.candidates.length,0),district_count:scoped.length} : {candidate_count:observation.mayorMetrics?.counties.reduce((sum,c)=>sum+c.cands_2026_count,0),district_count:observation.mayorMetrics?.counties.length};
+  row.append(observationMetric("登記候選人數", `${observationNumber(entry.candidate_count)} 人`, `正式審定名冊 · 查核 ${m.as_of}`), observationMetric("名冊所列選區", `${observationNumber(entry.district_count)} 區`, observation.office ? "目前公職的名冊選區" : "縣市長選舉"));
   if (!observation.county) row.append(observationMetric("全國選舉人數預估", `約 ${observationNumber(m.national_electorate.value)} 人`, `官方估計 · ${m.national_electorate.as_of}`));
   observationDetail.appendChild(row);
-  if (!observation.county) observationDetail.append(element("p", "observation-caution", `全國公告 ${observationNumber(m.official_district_count)} 個選區；目前已核實收錄 ${observationNumber(m.district_count)} 個選區候選人名冊。`));
+  if (product.council && !observation.county) observationDetail.append(element("p", "observation-caution", `全國公告 ${observationNumber(m.official_district_count)} 個選區；目前已核實收錄 ${observationNumber(m.district_count)} 個選區候選人名冊。`));
   observationDetail.append(element("p", "", observation.township && scoped?.some(d=>observationDistrictLocation(d)?.partial_townships?.includes(observation.township)) ? "此行政區的議員選區依村里劃分。請由上方清單選擇名冊，再核對公告所列村里。" : "從地圖點選地區，查看候選人、人口資料，以及 2014、2018、2022 的投票率與政黨催票率。也可展開上方名稱清單查找。"));
   observationDetail.append(element("p", "", "候選人與推薦政黨依中選會審定名冊列示；歷屆開票數據提供長期趨勢觀察。"));
   appendObservationSwingSummary(observationDetail);
   observationDetail.appendChild(observationSource(m.national_electorate.source_id));
 }
 // 歷史名冊提供各黨票數；選舉資料提供有效票、無效票與投票總數。
-const localMayorElectionCache = new Map();
-async function localMayorElection(year) {
-  if (!localMayorElectionCache.has(year)) {
-    const promise = (async () => {
-      const meta = state.manifest.elections.find(e => e.id === `mayor_${year}`);
-      if (!meta) return null;
-      const shard = await fetchJson(`data/${meta.file}`);
-      core.validateShard(shard, meta);
-      const rerun = year === 2022 ? state.manifest.elections.find(e => /^mayor_rerun_2022_[0-9]+$/.test(e.id)) : null;
-      if (!rerun) return shard;
-      const extra = await fetchJson(`data/${rerun.file}`);
-      core.validateShard(extra, rerun);
-      return core.combineMayor2022(shard, meta, extra, rerun);
-    })().catch(error => { localMayorElectionCache.delete(year); throw error; });
-    localMayorElectionCache.set(year, promise);
-  }
-  return localMayorElectionCache.get(year);
-}
 function appendLocalHistoryCard(names) {
+  if (!["metro_mayor", "county_mayor"].includes(observation.office)) return;
   const card = createCollapsibleCard({
     id: "local-history", icon: "📊", title: "歷屆投票率與政黨催票率（2014–2022）", defaultOpen: false,
-    contentFn: body => {
+    contentFn: async (body, context) => {
       const status = element("p", "observation-note", "正在核對各層級歷屆票數…");
       body.appendChild(status);
       const entry = historyPointer?.counties.find(c => c.name === names[0]);
       if (!entry) { status.textContent = "此地區沒有可用的歷史資料。"; return; }
-      Promise.all([fetchMayorHistoryForSwing(entry, new AbortController().signal), ...[2014, 2018, 2022].map(localMayorElection)])
-        .then(([history, ...shards]) => {
-          if (!body.isConnected) return;
+      const localResults = await loadLocalHistorySummary(names, context.signal);
+          if (!context.isCurrent()) return;
           clear(body);
-          body.appendChild(element("p", "observation-note", "此圖呈現本行政區歷屆縣市長選舉；催票率為政黨得票數除以該區選舉人數。各屆行政邊界可能不同。"));
-          const area = history?.areas.find(a => JSON.stringify(a.names) === JSON.stringify(names));
-          const localYears = [2014, 2018, 2022];
-          const localResults = localYears.map((year, i) => {
-            const election = area?.periods.find(p => p.year === year)?.elections;
-            const h = election?.length === 1 ? election[0] : null;
-            const shard = shards[i];
-            if (!h || !shard || !h.electorate || h.missing_electorate_count) return {year, error: "資料不足，無法繪圖。"};
-            const col = Object.fromEntries(shard.area_columns.map((key, index) => [key, index]));
-            const rows = shard.areas.filter(a => a[col.county_name] === names[0] && a[col.township_name] === names[1] && (names.length < 3 || a[col.village_name] === names[2]));
-            const sum = field => rows.reduce((n, a) => n + a[col[field]], 0);
-            const required = ["electorate", "valid_votes", "invalid_votes", "total_votes"];
-            const validRows = rows.length && required.every(k => Number.isInteger(col[k])) && rows.every(a => required.every(k => Number.isSafeInteger(a[col[k]]) && a[col[k]] >= 0));
-            const parties = new Map();
-            h.candidates.forEach(c => { const party = c.party === "無" ? "無黨籍及未經政黨推薦" : c.party; parties.set(party, (parties.get(party) || 0) + c.votes); });
-            const votes = [...parties.values()].reduce((a, b) => a + b, 0);
-            if (!validRows || sum("electorate") !== h.electorate || sum("valid_votes") !== votes || sum("total_votes") !== sum("valid_votes") + sum("invalid_votes") || sum("total_votes") > h.electorate) {
-              return {year, error: "來源範圍或票數未完整對上，無法繪圖。"};
-            }
-            return { year, electorate: h.electorate, valid_votes: votes, total_votes: sum("total_votes"), parties: [...parties].map(([name, votes]) => ({name, votes, electorate_share_pct: votes / h.electorate * 100})) };
-          });
+          body.appendChild(element("p", "observation-note", "此圖呈現本行政區歷屆縣市長選舉；催票率為政黨得票數除以選舉人數。各屆行政邊界可能不同；摘要在建置時核對有效票、投票數與選舉人數。"));
           const bars = element("div", "history-stacked-comparison");
           const partyUniverse = localResults.flatMap(item => item.parties || []);
           localResults.forEach(item => {
@@ -2991,13 +3037,82 @@ function appendLocalHistoryCard(names) {
             }
             body.appendChild(details);
           });
-        }).catch(() => { if (body.isConnected) status.textContent = "歷史資料載入或驗證失敗，請重新選取此地區。"; });
+
     }
   });
   observationDetail.appendChild(card);
 }
 
+function appendCouncilLocalHistory(names, parent) {
+  const metric=observation.councilMetrics?.districts.find(d=>d.map_district_id===parent?.id);
+  const labels={regional:"區域議員",plain_indigenous:"平地原住民議員",mountain_indigenous:"山地原住民議員"};
+  observationDetail.appendChild(createCollapsibleCard({id:"council-local-history",icon:"📊",title:"議員歷史票數與投票率（2014–2022）",defaultOpen:false,contentFn:async(body,context)=>{
+    const select=document.createElement("select");select.className="contest-sort-select";select.setAttribute("aria-label","歷史議員類別");
+    for(const [value,label] of Object.entries(labels)){const option=element("option","",label);option.value=value;select.appendChild(option);}
+    select.value=metric?.office_kind==="plains_indigenous"?"plain_indigenous":metric?.office_kind||"regional";
+    if(!select.value)select.value="regional";
+    body.append(select,element("p","observation-note","以下為歷史同名行政區的議員票數，各屆選區與選民範圍可能不同。區域、平地及山地原住民分開呈現；有效票占比與催票率（得票／選舉人數）分開計算，不是 2026 預測，也不計算村里末席差距。"));
+    const host=element("div","");body.appendChild(host);let generation=0;
+    const load=async()=>{
+      const token=++generation,scope=select.value;host.replaceChildren(element("p","observation-note","正在讀取議員歷史票數…"));
+      try {
+        const pointer=state.manifest.council_local_history;
+        if(!pointer)throw new Error("尚未提供議員地方歷史索引");
+        const index=await fetchJson(`data/${pointer.file}`,context.signal,pointer.sha256);
+        if(index.schema!=="council-local-index-v1")throw new Error("議員歷史索引版本不符");
+        const entry=index.areas[JSON.stringify([names[0],names[1],scope])];
+        const resource=entry?.resource || entry?.villages?.[names[2]||""];
+        if(!resource){if(token===generation&&context.isCurrent())host.replaceChildren(element("p","observation-missing","此類別沒有經核對的地方歷史資料；不是零票。"));return;}
+        const data=await fetchJson(`data/${resource.file}`,context.signal,resource.sha256);
+        if(!context.isCurrent()||token!==generation)return;
+        if(data.schema!=="council-local-records-v1"||data.county!==names[0]||data.town!==names[1]||data.scope!==scope)throw new Error("議員歷史資料範圍不符");
+        host.replaceChildren();const records=data.records.filter(r=>(r.village||null)===(names[2]||null));
+        for(const year of [2014,2018,2022]){
+          const group=records.filter(r=>r.year===year);
+          if(!group.length){host.appendChild(element("p","observation-missing",`${year} 年：此類別及行政區沒有可用資料，不是零票。`));continue;}
+          for(const rec of group){
+            host.appendChild(element("h4","",`${year} 年 ${labels[scope]} · 歷史${rec.district || "選區未註明"}`));
+            if(rec.errors.length){host.appendChild(element("p","observation-missing",`來源未通過核對：${rec.errors.join("、")}；不繪圖或猜補。`));continue;}
+            const t=rec.totals;
+            if(names[2] && rec.excludedFacts)host.appendChild(element("p","observation-caution",`同名村里另有 ${rec.excludedFacts} 筆來源候選人紀錄無法精確對照，以下僅為已核對部分，並非完整村里總數。`));
+            if(!names[2])host.appendChild(element("p","observation-note",`此歷史選區在同名鄉鎮的 ${rec.areaCount} 個可對照村里加總；不跨歷史選區合併。${rec.excludedFacts ? `另有 ${rec.excludedFacts} 筆無法對照的來源候選人紀錄未納入，並非完整鄉鎮總數。` : ""}`));
+            host.appendChild(element("p","observation-note",`有效票 ${observationNumber(t.valid_votes)}／無效票 ${observationNumber(t.invalid_votes)}／投票數 ${observationNumber(t.total_votes)}／選舉人數 ${observationNumber(t.electorate)}；投票率 ${t.electorate ? (100*t.total_votes/t.electorate).toFixed(2)+"%" : "無法計算"}`));
+            const parties=new Map();for(const c of rec.candidates)parties.set(c.party,(parties.get(c.party)||0)+c.votes);
+            if(t.electorate>0)renderStackedBar(host,{year,...t,parties:[...parties].map(([name,votes])=>({name,votes,electorate_share_pct:100*votes/t.electorate}))},[...parties.keys()].map(name=>({name})));
+            const details=document.createElement("details");details.appendChild(element("summary","",`查看 ${year} 年候選人票數（${rec.candidates.length} 人）`));
+            details.appendChild(observationTable(`${year} 年議員票數`,["號次","候選人","政黨","得票","有效票占比","催票率"],[...rec.candidates].sort((a,b)=>b.votes-a.votes||Number(a.number)-Number(b.number)).map(c=>[c.number,c.name,c.party,observationNumber(c.votes),t.valid_votes?(100*c.votes/t.valid_votes).toFixed(2)+"%":"—",t.electorate?(100*c.votes/t.electorate).toFixed(2)+"%":"—"])));host.appendChild(details);
+          }
+        }
+      } catch(error){if(token!==generation||!context.isCurrent())return;host.replaceChildren(element("p","observation-error",`議員歷史資料載入失敗：${error.message}`));const retry=element("button","detail-card-action","重試議員歷史資料");retry.type="button";retry.addEventListener("click",load);host.appendChild(retry);}
+    };
+    select.addEventListener("change",load);await load();
+  }}));
+}
+
+// Administrative drill-down must never substitute mayor history for another office.
+function renderOfficeLocalArea(town, village = null) {
+  clear(observationDetail);
+  const parent=observation.shard?.districts.find(d=>d.id===observation.district && d.office===observation.office);
+  const hero=element("div","hero-summary");
+  hero.append(element("p","eyebrow",observation.manifest?.offices[observation.office] || "行政區定位"),element("h2","",[observation.county,town,village].filter(Boolean).join(" ")));
+  hero.appendChild(element("p","observation-note",["metro_councilor","county_councilor"].includes(observation.office)?"地圖可切換 2022 末席配對地方票差與 2026 候選人／席次；灰色表示未提供或無法唯一對照。展開歷史卡可查看逐屆票數。":"此層為行政區定位。目前未提供此公職經核對的地方歷史票數，不以其他公職資料代替。"));
+  if(parent) {
+    hero.appendChild(element("p","observation-note",`所屬選區：${parent.name}（選區整體，非此行政區數據）`));
+    const back=element("button","observation-return",`查看 ${parent.name} 名冊與選區資料`);back.type="button";back.addEventListener("click",()=>observationNavigate("district",parent.id));hero.appendChild(back);
+  }
+  if(village){const back=element("button","observation-return",`返回 ${town}`);back.type="button";back.addEventListener("click",()=>observationNavigate("township",town));hero.appendChild(back);}
+  observationDetail.appendChild(hero);
+  if(["metro_councilor","county_councilor"].includes(observation.office))appendCouncilLocalHistory([observation.county,town,...(village?[village]:[])],parent);
+  if(!village) {
+    const villages=observation.geography?.villages(observation.county,town)||[];
+    const card=createCollapsibleCard({id:"township-villages",title:`${town} 村里定位`,previewPills:[`共 ${villages.length} 村里`],defaultOpen:false,contentFn:body=>{
+      for(const item of villages){const button=element("button","observation-return",item.label);button.type="button";button.addEventListener("click",()=>observationNavigate("village",item.label));body.appendChild(button);}
+    }});observationDetail.appendChild(card);
+  }
+}
+
 function renderObservationVillage(villageName) {
+  if (!["metro_mayor", "county_mayor"].includes(observation.office)) return renderOfficeLocalArea(observation.township,villageName);
   const cardKey = `village:${observation.county}:${observation.township}:${villageName}`;
   if (observation.cardStateDistrict !== cardKey) { observation.cardStateDistrict = cardKey; observation.cardOpenState = {}; }
   clear(observationDetail);
@@ -3184,6 +3299,7 @@ function appendDetailCardActions() {
 }
 
 function renderObservationTownship(townshipName) {
+  if (!["metro_mayor", "county_mayor"].includes(observation.office)) return renderOfficeLocalArea(townshipName);
   const cardKey = `township:${observation.county}:${observation.district || ""}:${townshipName}`;
   if (observation.cardStateDistrict !== cardKey) { observation.cardStateDistrict = cardKey; observation.cardOpenState = {}; }
   clear(observationDetail);
@@ -3242,8 +3358,8 @@ function renderObservationTownship(townshipName) {
   const kpi3 = element("div", "kpi-card");
   kpi3.append(
     element("span", "kpi-label", "搖擺村里"),
-    element("strong", "kpi-val", `${tSwing?.swingVillageCount || 0} 個`),
-    element("small", "kpi-sub", `其中激戰 ${tSwing?.closeSwingVillageCount || 0} 個`)
+    element("strong", "kpi-val", tSwing ? `${tSwing.swingVillageCount ?? 0} 個` : "未載入"),
+    element("small", "kpi-sub", tSwing ? `其中激戰 ${tSwing.closeSwingVillageCount ?? 0} 個` : "展開歷史資料檢視")
   );
 
   const kpi4 = element("div", "kpi-card");
@@ -3252,7 +3368,7 @@ function renderObservationTownship(townshipName) {
     element("strong", "kpi-val", tSwing?.marginPct != null ? `${tSwing.marginPct.toFixed(2)}%` : "—"),
     element("small", "kpi-sub", tSwing?.isClose2022 ? "差距 ≤3% 激戰" : "版圖勝差")
   );
-  kpiGrid.append(kpi1, kpi2, kpi3, kpi4);
+  kpiGrid.append(kpi1,kpi2,kpi3,kpi4);
   hero.appendChild(kpiGrid);
   observationDetail.appendChild(hero);
   appendLocalHistoryCard([county, townshipName]);
@@ -3308,7 +3424,7 @@ function renderObservationTownship(townshipName) {
         btn.addEventListener("click", () => {
           observationNavigate("village", v.label);
         });
-        let badgeText = "🛡️ 穩定基本盤";
+        let badgeText = sw ? "歷史差距較大" : "歷史資料未載入";
         if (sw?.quadrantStatus === "close_swing" || sw?.status === "close_swing") badgeText = "🔥 激戰搖擺";
         else if (sw?.quadrantStatus === "close_only" || sw?.status === "close_only") badgeText = "⚔️ 傳統激戰";
         else if (sw?.quadrantStatus === "swing_only" || sw?.status === "swing") badgeText = "🔄 歷屆搖擺";
@@ -3326,34 +3442,72 @@ function renderObservationTownship(townshipName) {
   }));
 }
 
-let villageGeographyPromise = null;
-function ensureVillageGeography() {
-  if (observation.villageGeography) return Promise.resolve(observation.villageGeography);
-  if (!villageGeographyPromise) {
-    const geo = state.manifest.geography;
-    villageGeographyPromise = fetchJson(`data/${geo.file}`, null, geo.sha256)
-      .then(topology => {
-        observation.villageGeography = core.buildObservationGeography(core.decodeTopology(topology).features);
-        observation.geography.villages = observation.villageGeography.villages;
-        observation.mapError = null;
-        if (observation.township && !observation.village) {
-          renderObservationTownship(observation.township);
-          renderObservationNavigation();
-        }
-        return observation.villageGeography;
-      }).catch(error => {
-        villageGeographyPromise = null;
-        observation.mapError = `村里圖資載入失敗：${error.message}；請重新選取鄉鎮市區。`;
-        renderObservationMap();
-      });
+let villageIndexPromise = null;
+const villageGeometryCache = new Map();
+const villageGeometryPending = new Map();
+function loadedVillages(county, town) {
+  for (const geography of villageGeometryCache.values()) {
+    const villages = geography.villages(county, town);
+    if (villages.length) return villages;
   }
-  return villageGeographyPromise;
+  return [];
+}
+async function ensureVillageGeography(county = observation.county, town = observation.township) {
+  if (!county || !town) throw new Error("請先選擇縣市及鄉鎮");
+  if (!villageIndexPromise) {
+    const pointer = state.manifest.geography.village_index;
+    villageIndexPromise = fetchJson(`data/${pointer.file}`, null, pointer.sha256).then(index => {
+      if (index.schema !== "village-shards-v1" || !index.counties) throw new Error("村里索引格式錯誤");
+      return index;
+    }).catch(error => { villageIndexPromise = null; throw error; });
+  }
+  const index = await villageIndexPromise;
+  const countyEntry = Object.values(index.counties).find(c => c.name === county);
+  const resource = countyEntry?.resource || Object.values(countyEntry?.towns || {}).find(t => t.name === town)?.resource;
+  if (!resource) throw new Error("找不到此行政區圖資");
+  const key = resource.sha256;
+  if (villageGeometryCache.has(key)) {
+    const value = villageGeometryCache.get(key);
+    villageGeometryCache.delete(key); villageGeometryCache.set(key,value);
+    return value;
+  }
+  if (!villageGeometryPending.has(key)) {
+    const pending = fetchJson(`data/${resource.file}`, null, resource.sha256).then(async topology => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const decoded = core.decodeTopology(topology);
+      if (decoded.features.length !== resource.featureCount) throw new Error("村里圖資數量不符");
+      const geography = core.buildObservationGeography(decoded.features);
+      villageGeometryCache.set(key, geography);
+      while (villageGeometryCache.size > 2) villageGeometryCache.delete(villageGeometryCache.keys().next().value);
+      return geography;
+    }).finally(() => villageGeometryPending.delete(key));
+    villageGeometryPending.set(key,pending);
+  }
+  return villageGeometryPending.get(key);
 }
 
-function observationNavigate(level, value = null) {
+function observationNavigate(level, value = null, fromRoute = false) {
+  if (level === "office" && !product.allowsOffice(value)) return;
+  if (level === "district" && !observation.shard?.districts.some(d => d.id === value && product.allowsOffice(d.office))) return;
+  if (!fromRoute) {
+    const selectedOffice = level === "office" ? value : observation.activeOffice || "mayor";
+    const office = ["metro_councilor", "county_councilor"].includes(selectedOffice) ? "council" : ["metro_mayor", "county_mayor"].includes(selectedOffice) ? "mayor" : selectedOffice;
+    const county = level === "home" ? null : level === "county" ? value : observation.county;
+    const district = ["home","county","office"].includes(level) ? null : level === "district" ? value : observation.district;
+    const town = ["home","county","office","district"].includes(level) ? null : level === "township" ? value : observation.township;
+    const village = level === "village" ? value : null;
+    const code = (regions, label) => { const r = regions?.find(r => r.label === label); return r ? JSON.parse(r.key)[2] : null; };
+    const countyCode = code(observation.geography?.counties, county);
+    const townCode = code(observation.geography?.townships(county), town);
+    const villageCode = code(observation.geography?.villages(county,town), village);
+    const route = globalThis.ElectionNavigation.serialize({office,county:countyCode,district,town:townCode,village:villageCode});
+    if (window.location.hash === route) return handleHashRoute();
+    navigateObservationHash(route);
+    return;
+  }
   observationSearch.value = "";
-  if (observation.bottomSheet && typeof window !== "undefined" && window.innerWidth <= 960) {
-    observation.bottomSheet.setDetent(level === "home" ? "peek" : "half");
+  if (observation.bottomSheet && typeof window !== "undefined" && window.innerWidth < 1024) {
+    // Final surface is committed once by the route handler.
   }
   if (level !== "home" && observation.inspectorCollapsed && typeof document !== "undefined") {
     observation.inspectorCollapsed = false;
@@ -3373,7 +3527,6 @@ function observationNavigate(level, value = null) {
   if (level === "township") {
     observation.cardStateDistrict = null;
     switchToDetailTab();
-    ensureVillageGeography();
     observation.township = value;
     observation.village = null;
     if (observation.district) {
@@ -3437,10 +3590,12 @@ function renderObservationNavigation() {
       observationBreadcrumb.appendChild(element("span", "observation-current", observation.township));
     }
   }
+  observationBreadcrumb.lastElementChild?.setAttribute('aria-current','location');
+  requestAnimationFrame(()=>{if(renderGeneration===observation.renderGeneration)observationBreadcrumb.scrollLeft=observationBreadcrumb.scrollWidth;});
   let choices = [];
-  if (!observation.county) choices = observation.manifest.counties.map(c => ({label:c.name, count:c.candidate_count, level:"county", value:c.name}));
+  if (!observation.county) choices = observation.manifest.counties.map(c => ({label:c.name, count:observation.mayorMetrics?.counties.find(m=>m.county===c.name)?.cands_2026_count ?? 0, level:"county", value:c.name}));
   else if (!observation.shard) { observationNavigation.appendChild(element("p", "", "正在核對本縣市資料…")); return; }
-  else if (!observation.office) choices = Object.entries(observation.manifest.offices).filter(([id]) => observation.shard.districts.some(d => d.office === id)).map(([id,label]) => ({label, count:observation.shard.districts.filter(d=>d.office===id).reduce((s,d)=>s+d.candidates.length,0), level:"office", value:id}));
+  else if (!observation.office) choices = Object.entries(observation.manifest.offices).filter(([id]) => product.allowsOffice(id) && observation.shard.districts.some(d => d.office === id)).map(([id,label]) => ({label, count:observation.shard.districts.filter(d=>d.office===id).reduce((s,d)=>s+d.candidates.length,0), level:"office", value:id}));
   else if (observation.township) {
     const villageRegions = observation.geography?.villages(observation.county, observation.township) || [];
     choices = villageRegions.map(r => {
@@ -3512,10 +3667,22 @@ function renderObservationNavigation() {
   if (!choices.length) list.appendChild(element("li", "", "沒有符合的項目。請清除篩選或返回上一層。"));
   observationNavigation.appendChild(list);
 }
+function renderCouncilPreview(metric) {
+  clear(observationDetail);
+  const hero=element("div","hero-summary");
+  hero.dataset.preview="true";
+  hero.append(element("p","eyebrow","議員選區"),element("h2","",`${metric.county} 第${metric.district_no}選區`));
+  const grid=element("div","kpi-grid"), current=element("div","kpi-card"), historical=element("div","kpi-card");
+  const seats=metric.seats?.["2026"], margin=metric.margin?.["2022"];
+  current.append(element("span","kpi-label","2026 候選人與席次"),element("strong","kpi-val",seats&&metric.cands_2026!=null?`${metric.cands_2026} 人選 ${seats} 席`:"名冊或席次待核對"),element("small","kpi-sub","審定名冊 2026-10-16 · 不代表當選機率"));
+  historical.append(element("span","kpi-label","2022 末席差距"),element("strong","kpi-val",margin?.votes!=null?`${margin.votes.toLocaleString("zh-TW")} 票`:"—"),element("small","kpi-sub",margin?.pct!=null?`占該屆有效票 ${margin.pct}%`:"無可比較差距"));
+  for(const note of globalThis.ElectionContestBoard.councilStatus(metric))historical.appendChild(element("small","kpi-sub",note));
+  grid.append(current,historical);hero.appendChild(grid);observationDetail.append(hero,element("p","observation-note","摘要已就緒，正在準備名冊與詳細資料…"));
+}
 async function loadObservationCounty(name) {
   observation.cardStateDistrict = null;
   switchToDetailTab();
-  if (window.innerWidth <= 960) observation.bottomSheet?.setDetent("half");
+
   if (observation.inspectorCollapsed) {
     observation.inspectorCollapsed = false;
     document.getElementById("observation-inspector")?.classList.remove("collapsed");
@@ -3525,7 +3692,12 @@ async function loadObservationCounty(name) {
   const generation = observation.gate.begin();
   observation.countyError = null;
   observation.county = name; observation.office = null; observation.township = null; observation.district = null; observation.village = null; observation.shard = null; observation.swingData = null; observation.swingAnalysis = null;
-  clear(observationDetail); observationDetail.appendChild(element("p", "", "正在核對本縣市名冊與歷史資料…")); renderObservationNavigation();
+  clear(observationDetail); observationDetail.appendChild(element("p", "", "正在載入本縣市名冊與摘要…")); renderObservationNavigation();
+  if (observation.activeOffice === "council") {
+    const route=globalThis.ElectionNavigation.parse(window.location.hash);
+    const metric=observation.councilMetrics?.districts.find(d=>d.county===name&&(route.district?d.map_district_id===route.district:d.office_kind===route.scope&&d.district_no===route.no));
+    if(metric)renderCouncilPreview(metric);
+  }
   try {
     const entry = observation.manifest.counties.find(c => c.name === name);
     if (!entry) throw new Error("觀察資料沒有此縣市");
@@ -3533,18 +3705,22 @@ async function loadObservationCounty(name) {
     if (!shard) { shard = await fetchJson(`data/${entry.file}`, controller.signal, entry.sha256); core.validateObservationShard(shard, entry, observation.manifest); }
     if (!observation.gate.isCurrent(generation)) return;
     observation.cache.set(name, shard); observation.shard = shard;
-    const offices = observation.activeOffice === "council" ? ["metro_councilor", "county_councilor"] : ["metro_mayor", "county_mayor"];
-    observationNavigate("office", shard.districts.find(d => offices.includes(d.office))?.office || shard.districts[0].office);
-    ensureCountySwingData(name).then((data) => {
-      if (observation.county !== name || !data) return;
+    const offices = observation.activeOffice === "council" ? ["metro_councilor", "county_councilor"] : observation.activeOffice === "mayor" ? ["metro_mayor", "county_mayor"] : [observation.activeOffice];
+    const office = shard.districts.find(d => offices.includes(d.office))?.office;
+    if (!office) throw new Error("此縣市沒有目前選取的公職，請選擇其他縣市");
+    observationNavigate("office", office, true);
+    if (observation.activeOffice !== "council") ensureCountySwingData(name).then((data) => {
+      if (!observation.gate.isCurrent(generation) || observation.county !== name || !data) return;
       observation.swingData = data;
       observation.swingAnalysis = data.villages;
       if (observation.mapReady) renderObservationMap();
+      refreshObservationDetail(() => {
       if (observation.district && !observation.township && !observation.village) renderObservationDistrict(observation.district);
       else if (observation.township && !observation.village) renderObservationTownship(observation.township);
       else if (observation.village) renderObservationVillage(observation.village);
       else if (observation.district) renderObservationDistrict(observation.district);
       else observationOverview();
+      });
     });
   } catch(error) {
     if (!observation.gate.isCurrent(generation)) return;
@@ -3573,8 +3749,6 @@ function renderObservationDistrict(id, reveal = false) {
     || (d.township ? observation.swingData?.scopes?.townships.get(`${d.county}／${d.township}`) : null)
     || observation.swingData?.scopes?.counties.get(d.county);
 
-  appendDetailCardActions();
-
   // --- Tier 1: Fixed Hero Summary & KPI Cards ---
   const hero = element("div", "hero-summary");
   const heroHeader = element("div", "hero-header");
@@ -3589,6 +3763,7 @@ function renderObservationDistrict(id, reveal = false) {
   const back = element("button", "observation-return", "回到地圖選區");
   back.type = "button";
   back.addEventListener("click", () => {
+    if (window.innerWidth < 1024) observation.bottomSheet?.setDetent("summary");
     observationMapCanvas.focus({ preventScroll: true });
     observationMapCanvas.scrollIntoView({ block: "center" });
   });
@@ -3599,8 +3774,9 @@ function renderObservationDistrict(id, reveal = false) {
 
   // SNTV Notice & Dual-Lens Toggle for Councilors
   if (isCouncilor) {
+    const advanced = element("details", "metric-method"); advanced.appendChild(element("summary", "", "選舉制度與其他歷史視角"));
     const sntvNotice = element("div", "sntv-notice", "💡 議員採多席次單記不可讓渡制（SNTV），分析重點在於「當選邊緣（最後一席與落選頭差距）」與「各黨得票板塊分佈」。");
-    hero.appendChild(sntvNotice);
+    advanced.appendChild(sntvNotice);
 
     const dualLens = element("div", "dual-lens-toggle");
     const lensCouncilor = element("button", `dual-lens-btn ${observation.councilorLens === "councilor" ? "active" : ""}`, "議員本職選情（預設）");
@@ -3611,12 +3787,22 @@ function renderObservationDistrict(id, reveal = false) {
     });
     const lensMayor = element("button", `dual-lens-btn ${observation.councilorLens === "mayor_base" ? "active" : ""}`, "選區內縣市長基本盤");
     lensMayor.type = "button";
-    lensMayor.addEventListener("click", () => {
+    lensMayor.addEventListener("click", async () => {
+      const generation = routeGeneration, county = observation.county;
+      lensMayor.disabled = true; lensMayor.textContent = "正在載入歷史摘要…";
+      const data = await ensureCountySwingData(county);
+      if (generation !== routeGeneration || !lensMayor.isConnected) return;
+      lensMayor.disabled = false;
+      if (!data) { lensMayor.textContent = "歷史摘要載入失敗，按此重試"; return; }
+      observation.swingData = data; observation.swingAnalysis = data.villages;
       observation.councilorLens = "mayor_base";
       renderObservationDistrict(id);
     });
     dualLens.append(lensCouncilor, lensMayor);
-    hero.appendChild(dualLens);
+    advanced.appendChild(dualLens);
+    const swing = councilMetric?.seat_swing;
+    advanced.appendChild(element("p", "observation-note", `席次結構變動指數：${swing?.rate != null ? (swing.rate * 100).toFixed(1) + "%" : "資料不足"}。每兩屆的 Σ｜各政黨席次差｜÷2，累加 2014→2018 與 2018→2022，再除以三屆平均席次。可超過 100%，0.5 是計算值，不是半席當選或選民換黨比例。`));
+    hero.appendChild(advanced);
   }
 
   // 4 KPI Cards
@@ -3677,8 +3863,17 @@ function renderObservationDistrict(id, reveal = false) {
     element("strong", "kpi-val", quadrantText),
     element("small", "kpi-sub", quadrantSub)
   );
-  kpiGrid.append(kpi1, kpi2, kpi3, kpi4);
-  hero.appendChild(kpiGrid);
+  if (isCouncilor && observation.councilorLens === "councilor") {
+    kpi2.querySelector(".kpi-label").textContent = "2026 候選人與席次";
+    kpi2.querySelector(".kpi-val").textContent = councilMetric?.seats?.["2026"] ? `${d.candidates.length} 人選 ${councilMetric.seats["2026"]} 席` : `${d.candidates.length} 人參選 · 席次待核對`;
+    kpi2.querySelector(".kpi-sub").textContent = "審定名冊 2026-10-16 · 不代表當選機率";
+    kpi3.querySelector(".kpi-label").textContent = "2022 末席差距";
+    kpi3.querySelector(".kpi-sub").textContent = councilMetric?.margin?.["2022"]?.pct != null ? `占該屆有效票 ${councilMetric.margin["2022"].pct}%` : "資料不足或同額，無法比較";
+    for (const text of globalThis.ElectionContestBoard.councilStatus(councilMetric || {})) kpi3.appendChild(element("small", "kpi-sub", text));
+    if (d.candidates.length === councilMetric?.seats?.["2026"]) kpi2.appendChild(element("small", "kpi-sub", "人數等於席次；不代表必然當選"));
+    kpiGrid.append(kpi2,kpi3);
+  } else kpiGrid.append(kpi1,kpi2,kpi3,kpi4);
+  hero.insertBefore(kpiGrid, hero.querySelector(".metric-method"));
 
   observationDetail.appendChild(hero);
 
@@ -3731,7 +3926,9 @@ function renderObservationDistrict(id, reveal = false) {
       if (d.candidates.some(c=>c.name_status==="unreadable")) {
         body.appendChild(element("p", "observation-caution", "原始 PDF 的部分姓名無法完整辨識，暫不轉錄推測姓名；請開啟該筆官方來源核對。登記總數仍包含該筆。"));
       }
-      body.appendChild(observationTable("正式登記候選人名冊", ["姓名", "推薦政黨", "登記日期", "來源"], candidates.map(c=>[c.name ?? "姓名待核對（原始 PDF 字形缺漏）", c.party === "無" ? "無黨籍（未經政黨推薦）" : c.party, c.registered_on, observationSource(d.source_id,c.source_page)])));
+      const table = observationTable("正式登記候選人名冊", ["姓名", "推薦政黨", "登記日期", "來源"], candidates.map(c=>[c.name ?? "姓名待核對（原始 PDF 字形缺漏）", c.party === "無" ? "無黨籍（未經政黨推薦）" : c.party, c.registered_on, observationSource(d.source_id,c.source_page)]));
+      table.querySelectorAll("tbody tr").forEach((row,i) => { row.dataset.candidate = String(d.candidates.indexOf(candidates[i])); row.tabIndex = -1; row.classList.toggle("search-selected-candidate", routeCandidateIndex() === row.dataset.candidate); });
+      body.appendChild(table);
     }
   });
   observationDetail.appendChild(rosterCard);
@@ -3759,7 +3956,7 @@ function renderObservationDistrict(id, reveal = false) {
             const cGrid = element("div", "observation-metrics-grid");
             cGrid.append(
               observationMetric("2022 末席票數差", margin?.votes != null ? `${margin.votes.toLocaleString("zh-TW")} 票` : "—", margin?.last_win && margin?.first_lose ? `${margin.last_win}／${margin.first_lose}` : "資料不足或同額"),
-              observationMetric("2022 末席有效票差", margin?.pct != null ? `${margin.pct}%` : "—", margin?.women_quota_applied ? "含婦女保障名額" : "最後常態當選席與落選頭"),
+              observationMetric("2022 末席差距占有效票", margin?.pct != null ? `${margin.pct}%` : "—", margin?.women_quota_applied ? "含婦女保障名額" : "最後常態當選席與落選頭"),
               observationMetric("2026 參選競爭", councilMetric.seats?.["2026"] ? `${d.candidates.length} 人搶 ${councilMetric.seats["2026"]} 席` : "—", councilMetric.competition?.ratio_2026 != null ? `平均每席 ${councilMetric.competition.ratio_2026} 人競爭` : "應選席次資料不足")
             );
             body.appendChild(cGrid);
@@ -3858,11 +4055,11 @@ function renderObservationDistrict(id, reveal = false) {
     id: "jump",
     icon: "🧭",
     title: "行政區與選區快速跳轉",
-    previewPills: [`${observation.shard.districts.length} 個選區`],
+    previewPills: [`${observation.shard.districts.filter(d => product.allowsOffice(d.office)).length} 個選區`],
     defaultOpen: false,
     contentFn: (body) => {
       const list = element("div", "swing-summary-list");
-      observation.shard.districts.forEach((other) => {
+      observation.shard.districts.filter(d => product.allowsOffice(d.office)).forEach((other) => {
         const btn = element("button", `swing-summary-button ${other.id === d.id ? "active" : ""}`, other.name || other.id);
         btn.type = "button";
         btn.addEventListener("click", () => { observationNavigate("office", other.office); observationNavigate("district", other.id); });
@@ -3882,7 +4079,7 @@ function renderObservationDistrict(id, reveal = false) {
     defaultOpen: false,
     contentFn: (body) => {
       body.appendChild(element("p", "observation-note", "催票率＝得票數 ÷ 選舉人數（代表候選人實際動員出全體選民的比例，可跨屆比較動員力）。"));
-      body.appendChild(element("p", "observation-note", "2026 候選人名單依中選會 2026-09-09 登記彙整公報整理。"));
+      body.appendChild(element("p", "observation-note", `2026 縣市長候選人名冊資料基準：${observation.manifest.as_of}。`));
       if (isCouncilor) {
         body.appendChild(element("p", "observation-note", "議員為多席次選舉，地圖以選區涵蓋之鄉鎮市區定位；激戰指標採「2022 最低票當選與落選頭差距」。"));
       }
@@ -3892,15 +4089,15 @@ function renderObservationDistrict(id, reveal = false) {
         (location.source_pages || [location.source_page]).forEach(page=>body.appendChild(observationSource(location.source_id,page,"選區公告")));
       }
       if (d.population) body.appendChild(observationSource(d.population.source_id, null, "人口統計"));
-      (observation.manifest?.sources || []).forEach(src => {
-        body.appendChild(observationSource(src.id, null, src.title));
+      (observation.manifest?.sources || []).filter(src => product.council || !/cec-roster-[1345678]$|cec-63626/.test(src.id)).forEach(src => {
+        body.appendChild(observationSource(src.id, null, src.id === "cec-65213" ? "候選人資格審定公告" : src.title));
       });
       d.history_issues.forEach(issue=>body.appendChild(element("p","observation-error",issue)));
     }
   });
   observationDetail.appendChild(notesCard);
 
-  if (reveal && window.matchMedia("(max-width: 800px)").matches) hero.scrollIntoView({ block: "start" });
+  if (reveal && window.matchMedia("(max-width: 1023px)").matches) hero.scrollIntoView({ block: "start" });
 }
 async function initializeObservation(pointer) {
   if (!pointer) return;
@@ -3908,12 +4105,13 @@ async function initializeObservation(pointer) {
     const manifest = await fetchJson(`data/${pointer.manifest}`, null, pointer.sha256);
     core.validateObservationManifest(manifest, pointer);
     observation.manifest = manifest;
+    renderObservationMap();
     observation.activeOffice = "mayor"; // 預設為縣市長
 
-    // 載入 22 縣市長指標
-    try {
+    // Initial council routes must not fetch the other office summary.
+    if (!product.council || !window.location.hash.startsWith("#/council")) try {
       observation.mayorMetrics = await fetchJson(`data/${pointer.mayor_metrics.file}`, null, pointer.mayor_metrics.sha256);
-    } catch (_) {}
+    } catch (error) { observation.mayorMetrics = null; }
 
     // 初始化拉鋸榜元件 ContestBoard
     const boardContainer = document.getElementById("contest-board-container");
@@ -3922,10 +4120,10 @@ async function initializeObservation(pointer) {
         container: boardContainer,
         mode: "mayor",
         onSelectMayor: (countyName) => {
-          window.location.hash = `#/mayor/${encodeURIComponent(countyName)}`;
+          navigateObservationHash(`#/mayor/${encodeURIComponent(countyName)}`);
         },
         onSelectCouncil: (district) => {
-          window.location.hash = `#/council/${encodeURIComponent(district.county)}/${encodeURIComponent(district.office_kind)}/${encodeURIComponent(district.district_no)}`;
+          navigateObservationHash(`#/council/${encodeURIComponent(district.county)}/${encodeURIComponent(district.office_kind)}/${encodeURIComponent(district.district_no)}`);
         },
         onHoverItem: (key, type) => {
           observation.mapHover = key;
@@ -3942,21 +4140,10 @@ async function initializeObservation(pointer) {
     const tabCouncil = document.getElementById("tab-council");
     if (tabMayor && tabCouncil) {
       tabMayor.addEventListener("click", () => {
-        window.location.hash = "#/mayor";
+        navigateObservationHash("#/mayor");
       });
       tabCouncil.addEventListener("click", () => {
-        window.location.hash = "#/council";
-      });
-    }
-
-    // 更多選單 (⋯)
-    const themeBtn = document.getElementById("theme-toggle-btn");
-    if (themeBtn) {
-      themeBtn.addEventListener("click", () => {
-        const nextTheme = state.mapTheme === "dark" ? "light" : "dark";
-        state.mapTheme = nextTheme;
-        updateMapThemeControls();
-        requestAnimationFrame(drawObservationMap);
+        navigateObservationHash("#/council");
       });
     }
 
@@ -3984,7 +4171,7 @@ async function initializeObservation(pointer) {
         if (observation.county) {
           observationNavigate("county", observation.county);
         } else {
-          observationNavigate("county", "臺北市");
+          observationNavigate("home");
         }
       });
     });
@@ -4015,33 +4202,26 @@ async function initializeObservation(pointer) {
     if (inspector && globalThis.ElectionUIShell) {
       observation.bottomSheet = globalThis.ElectionUIShell.createBottomSheet(inspector, inspector.querySelector(".sheet-grabber-bar"), { onDetentChange: () => requestAnimationFrame(renderObservationMap) });
     }
-    const widthSelect = document.getElementById("inspector-width");
-    if (widthSelect && inspector) {
-      widthSelect.addEventListener("change", () => {
-        const width = widthSelect.value;
-        inspector.dataset.panelWidth = width;
-        if (window.innerWidth <= 960 && width !== "full") observation.bottomSheet?.setDetent("half");
+    document.getElementById("mobile-summary-open")?.addEventListener("click", () => observation.bottomSheet?.setDetent("expanded"));
+    document.getElementById("inspector-reading-btn")?.addEventListener("click", (event) => {
+      inspector.classList.toggle("reading"); event.currentTarget.textContent = inspector.classList.contains("reading") ? "返回分欄" : "展開閱讀"; renderObservationMap();
+    });
+    collapseBtn?.addEventListener("click", () => {
+      if (window.innerWidth < 1024) observation.bottomSheet?.setDetent("summary");
+      else { inspector.classList.toggle("reading"); renderObservationMap(); }
+    });
+    if (typeof ResizeObserver !== "undefined") {
+      const resize = new ResizeObserver(() => {
+        const height = Math.ceil(document.querySelector(".topbar").getBoundingClientRect().height);
+        document.documentElement.style.setProperty("--toolbar-height", `${height}px`);
         requestAnimationFrame(renderObservationMap);
       });
+      resize.observe(document.querySelector(".topbar"));
+      resize.observe(document.querySelector(".observation-map-card"));
     }
-    if (collapseBtn && expandBtn && inspector) {
-      collapseBtn.addEventListener("click", () => {
-        if (window.innerWidth <= 960) {
-          if (inspector.dataset.panelWidth === "full") { inspector.dataset.panelWidth = "narrow"; if (widthSelect) widthSelect.value = "narrow"; }
-          observation.bottomSheet?.setDetent("peek"); return;
-        }
-        observation.inspectorCollapsed = true;
-        inspector.classList.add("collapsed");
-        expandBtn.classList.remove("hidden");
-        requestAnimationFrame(drawObservationMap);
-      });
-      expandBtn.addEventListener("click", () => {
-        observation.inspectorCollapsed = false;
-        inspector.classList.remove("collapsed");
-        expandBtn.classList.add("hidden");
-        requestAnimationFrame(drawObservationMap);
-      });
-    }
+
+    inspector.addEventListener("scroll", saveObservationView, true);
+    inspector.addEventListener("focusin", saveObservationView);
 
     // 全域快速搜尋 (Spotlight)
     if (globalThis.ElectionUIShell) {
@@ -4053,33 +4233,94 @@ async function initializeObservation(pointer) {
       if (modal && input && results) {
         observation.spotlight = shell.createSpotlight(
           modal, input, results,
-          () => buildGlobalSearchItems(),
+          (kind) => loadGlobalSearchIndex(kind),
           (item) => {
-            if (item?.route) window.location.hash = item.route;
+            if (item?.route) navigateObservationHash(item.route);
           }
         );
         if (trigger) trigger.addEventListener("click", () => observation.spotlight.open());
       }
     }
 
-    // 地圖回上一層與重設視野按鈕
-    const mapBackBtn = document.getElementById("observation-map-back");
-    if (mapBackBtn) {
-      mapBackBtn.addEventListener("click", observationMapBackAction);
-    }
-    const mapResetBtn = document.getElementById("observation-map-reset");
-    if (mapResetBtn) {
-      mapResetBtn.addEventListener("click", () => {
-        observation.mapZoom = 1;
-        observation.mapPan = [0, 0];
-        requestAnimationFrame(drawObservationMap);
-      });
-    }
-
     observationOverview();
   } catch (err) {
     observation.mapError = "審定名冊載入失敗";
+    throw err;
   }
+}
+
+const globalSearchPromises = new Map();
+function loadGlobalSearchIndex(kind = "places") {
+  if (!globalSearchPromises.has(kind)) globalSearchPromises.set(kind, (async () => {
+    const index = state.manifest.search_index;
+    if (!index || index.schema !== "search-index-v1") throw new Error("搜尋索引版本不符");
+    const pointers = kind === "candidates" ? index.candidates : [index.places];
+    const records = [];
+    let next = 0;
+    async function worker() {
+      while (next < pointers.length) {
+        const pointer = pointers[next++];
+        const data = await fetchJson(`data/${pointer.file}`, null, pointer.sha256);
+        if (data.schema !== "search-records-v1" || data.release !== index.release || data.columns?.join(",") !== "id,name,sublabel,route,kind,aliases,countyId,office,districtId,townId,villageId,candidateId" || !Array.isArray(data.records) || data.records.length !== pointer.recordCount) throw new Error("搜尋索引不完整");
+        records.push(...data.records.map(([id,label,sublabel,route,kind,aliases,countyId,office,districtId,townId,villageId,candidateId]) => ({id,label,sublabel,route,kind,aliases,countyId,office,districtId,townId,villageId,candidateId,release:data.release})));
+      }
+    }
+    await Promise.all([worker(),worker()]);
+    return records.filter(product.acceptSearch);
+  })().catch(error => { globalSearchPromises.delete(kind); throw error; }));
+  return globalSearchPromises.get(kind);
+}
+
+// Store presentation state per browser history entry; URLs remain shareable IDs.
+let renderedObservationHash = null;
+function saveObservationView() {
+  if (renderedObservationHash !== window.location.hash) return;
+  const board = observation.contestBoard, active = document.activeElement;
+  const view = {
+    councilMapLayer:observation.councilMapLayer||"competition",councilMapScope:councilMapScope(),
+    detent: observation.bottomSheet?.getDetent(),
+    tab: document.getElementById("observation-detail").classList.contains("hidden") ? "board" : "detail",
+    boardScroll: document.getElementById("contest-board-container").scrollTop,
+    detailScroll: observationDetail.scrollTop,
+    sort: board?.councilSort, county: board?.selectedCounty, scope: board?.councilScope, includeIncomparable: board?.includeIncomparable, count: board?.visibleCount,
+    zoom: observation.mapZoom, pan: [...observation.mapPan], search: observationSearch.value,
+    focusId: active?.id, focusKey: active?.dataset?.key,
+    cards: [...observationDetail.querySelectorAll(".card-header[aria-expanded='true']")].map(n => n.closest(".collapsible-card")?.id).filter(Boolean)
+  };
+  window.history.replaceState({...window.history.state, observationView: view}, "");
+}
+function navigateObservationHash(route) {
+  const opener=document.activeElement;
+  const fromList=!!opener?.closest?.(".contest-item");
+  saveObservationView();
+  if (window.location.hash !== route) window.history.pushState({}, "", route);
+  const pending=handleHashRoute(), generation=routeGeneration;
+  return Promise.resolve(pending).then(() => {
+    if(fromList && generation===routeGeneration && (document.activeElement===opener || document.activeElement===document.body)) {
+      const heading=observationDetail.querySelector(".hero-summary h2");
+      if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
+    }
+  });
+}
+function restoreObservationView(view) {
+  renderedObservationHash = window.location.hash;
+  if (!view) { saveObservationView(); return; }
+  renderedObservationHash = null;
+  observation.councilMapLayer=view.councilMapLayer||"competition";observation.councilMapScope=view.councilMapScope||"regional";
+  const board = observation.contestBoard;
+  if (board) { board.councilSort = view.sort || "competition"; board.selectedCounty = view.county || ""; board.councilScope = view.scope || "all"; board.includeIncomparable = !!view.includeIncomparable; board.visibleCount = view.count || 20; board.render(); }
+  document.getElementById(view.tab === "board" ? "tab-contest-board" : "tab-inspector-detail")?.click();
+  observation.bottomSheet?.setDetent(view.detent || "summary");
+  observation.mapZoom = view.zoom || 1; observation.mapPan = view.pan || [0,0];
+  observationSearch.value = view.search || ""; renderObservationNavigation();
+  for (const id of view.cards || []) { const header = document.getElementById(id)?.querySelector(".card-header"); if (header?.getAttribute("aria-expanded") === "false") header.click(); }
+  requestAnimationFrame(() => {
+    document.getElementById("contest-board-container").scrollTop = view.boardScroll || 0;
+    observationDetail.scrollTop = view.detailScroll || 0;
+    const target = view.focusId ? document.getElementById(view.focusId) : view.focusKey ? document.querySelector(`[data-key="${CSS.escape(view.focusKey)}"]`) : null;
+    target?.focus({preventScroll: true}); renderObservationMap();
+    renderedObservationHash = window.location.hash; saveObservationView();
+  });
 }
 
 // 建立全域快速搜尋索引
@@ -4093,9 +4334,9 @@ function buildGlobalSearchItems() {
   if (observation.councilMetrics?.districts) {
     observation.councilMetrics.districts.forEach(d => {
       items.push({
-        label: `${d.county} ${d.district_name}`,
-        sublabel: `議員選區 · 應選 ${d.seats_2026} 席`,
-        route: `#/council/${encodeURIComponent(d.county)}/${encodeURIComponent(d.scope)}/${encodeURIComponent(d.district_no)}`
+        label: `${d.county} 第${d.district_no}選區`,
+        sublabel: `${({regional:"區域議員", plain_indigenous:"平地原住民議員", plains_indigenous:"平地原住民議員", mountain_indigenous:"山地原住民議員"})[d.office_kind] || "議員選區"} · 應選 ${d.seats?.["2026"] ?? "—"} 席`,
+        route: `#/council/${encodeURIComponent(d.county)}/${encodeURIComponent(d.office_kind)}/${encodeURIComponent(d.district_no)}`
       });
     });
   }
@@ -4103,31 +4344,83 @@ function buildGlobalSearchItems() {
 }
 
 // Hash 路由處理器
+let routeGeneration = 0;
+let councilMetricsPending = null;
+async function ensureCouncilMetrics() {
+  if (observation.councilMetrics) return observation.councilMetrics;
+  if (!councilMetricsPending) {
+    const pointer = state.manifest.observation_2026.council_metrics;
+    councilMetricsPending = fetchJson(`data/${pointer.file}`, null, pointer.sha256)
+      .then(data => { if (data.schema !== "council-metrics-v1" || !Array.isArray(data.districts)) throw Object.assign(new Error("資料版本不一致，請重新整理以取得新版本（議員 schema 不符）"), {code:"DATA_VERSION"}); observation.councilMetrics = data; return data; })
+      .finally(() => { councilMetricsPending = null; });
+  }
+  return councilMetricsPending;
+}
+function routeCandidateIndex() {
+  const query = new URLSearchParams(window.location.hash.split("?")[1] || "");
+  const pin = query.get("roster");
+  const pointer = observation.manifest?.counties.find(c => c.name === observation.county);
+  // A roster position is meaningful only for the exact immutable source shard.
+  return pin && pin === pointer?.sha256 ? query.get("candidate") : null;
+}
+function showRouteError(error) {
+  const host = document.getElementById("contest-board-container");
+  if (!host) return;
+  host.replaceChildren();
+  host.appendChild(element("p", "observation-error", `資料未能載入：${error.message}`));
+  const retry = element("button", "", "重試目前頁面");
+  retry.type = "button";
+  if (error.code === "DATA_VERSION") { retry.textContent="重新整理取得新版本"; retry.addEventListener("click",()=>window.location.reload()); }
+  else retry.addEventListener("click", handleHashRoute);
+  host.appendChild(retry);
+  const home = element("button", "", "返回首頁"); home.type = "button";
+  home.addEventListener("click", () => { navigateObservationHash("#/mayor"); }); host.appendChild(home);
+  document.getElementById("tab-contest-board")?.click();
+  observation.bottomSheet?.setDetent("expanded");
+  host.firstElementChild?.setAttribute("role", "status");
+}
 async function handleHashRoute() {
+  const generation = ++routeGeneration;
+  const savedView = window.history?.state?.observationView;
+  const desiredSurface = observation.nextSurface; observation.nextSurface = null;
+  observation.gate.invalidate();
+  observation.controller?.abort();
   const hash = window.location.hash || "#/mayor";
-  const parts = hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
-  const primary = parts[0] || "mayor";
+  let parsed;
+  try { parsed = globalThis.ElectionNavigation.parse(hash); }
+  catch(error) { showRouteError(new Error("網址編碼或層級無效；請返回首頁")); return; }
+  const redirect = product.redirectRoute(parsed, globalThis.ElectionNavigation);
+  if (redirect) { window.history.replaceState({}, "", redirect); return handleHashRoute(); }
+  const primary = parsed.office;
+  const countyName = parsed.canonical ? observation.geography?.counties.find(c => JSON.parse(c.key)[2] === parsed.county)?.label : parsed.county;
+  if (parsed.county && !countyName) { showRouteError(new Error("找不到此縣市")); return; }
+  if (countyName && state.manifest?.geography) loadTownGeography(countyName);
+  observation.bottomSheet?.setDetent(desiredSurface || (parsed.county ? "expanded" : "summary"));
+  const parts = [primary,countyName,parsed.scope,parsed.no];
+  const query = new URLSearchParams();
+  if (parsed.district) query.set("district",parsed.district);
+  if (parsed.town) query.set("town",parsed.town);
+  if (parsed.village) query.set("village",parsed.village);
+  if (!["mayor", "council"].includes(primary) && !observation.manifest?.offices?.[primary]) {
+    showRouteError(new Error("未知公職；請返回首頁")); return;
+  }
 
   const tabMayor = document.getElementById("tab-mayor");
   const tabCouncil = document.getElementById("tab-council");
 
   if (primary === "council") {
     observation.activeOffice = "council";
-    if (tabMayor) { tabMayor.classList.remove("active"); tabMayor.setAttribute("aria-checked", "false"); }
-    if (tabCouncil) { tabCouncil.classList.add("active"); tabCouncil.setAttribute("aria-checked", "true"); }
+    if (tabMayor) { tabMayor.classList.remove("active"); tabMayor.setAttribute("aria-pressed", "false"); }
+    if (tabCouncil) { tabCouncil.classList.add("active"); tabCouncil.setAttribute("aria-pressed", "true"); }
 
-    // 載入議員指標 (council-metrics.json)
-    if (!observation.councilMetrics) {
-      try {
-        const metricPointer = state.manifest.observation_2026.council_metrics;
-        observation.councilMetrics = await fetchJson(`data/${metricPointer.file}`, null, metricPointer.sha256);
-        if (observation.contestBoard) {
-          observation.contestBoard.setCouncilData(observation.councilMetrics);
-        }
-      } catch (_) {}
-    }
-    if (observation.contestBoard) {
-      observation.contestBoard.setMode("council");
+    observation.contestBoard?.setMode("council");
+    try {
+      const data = await ensureCouncilMetrics();
+      if (generation !== routeGeneration || window.location.hash !== hash) return;
+      observation.contestBoard?.setCouncilData(data);
+    } catch (error) {
+      if (generation === routeGeneration) showRouteError(error);
+      return;
     }
 
     const county = parts[1];
@@ -4135,24 +4428,34 @@ async function handleHashRoute() {
     const distNo = parts[3];
 
     if (county) {
-      await observationNavigate("county", county);
-      if (window.location.hash !== hash || observation.county !== county) return;
+      await observationNavigate("county", county, true);
+      if (generation !== routeGeneration || window.location.hash !== hash || observation.county !== county) return;
       if (distNo) {
         const metric = observation.councilMetrics?.districts.find(d => d.county === county && d.office_kind === scope && d.district_no === distNo);
         if (metric && observation.shard?.districts.some(d => d.id === metric.map_district_id)) {
-          observationNavigate("district", metric.map_district_id);
+          observationNavigate("district", metric.map_district_id, true);
           switchToDetailTab();
-        }
+        } else { showRouteError(new Error("找不到此議員選區")); return; }
       }
     } else {
-      observationNavigate("home");
+      observationNavigate("home", null, true);
       document.getElementById("tab-contest-board")?.click();
     }
   } else {
-    // 預設為 mayor
-    observation.activeOffice = "mayor";
-    if (tabMayor) { tabMayor.classList.add("active"); tabMayor.setAttribute("aria-checked", "true"); }
-    if (tabCouncil) { tabCouncil.classList.remove("active"); tabCouncil.setAttribute("aria-checked", "false"); }
+    if (!observation.mayorMetrics && primary === "mayor") {
+      try {
+        const pointer = state.manifest.observation_2026.mayor_metrics;
+        const data = await fetchJson(`data/${pointer.file}`, null, pointer.sha256);
+        if (generation !== routeGeneration) return;
+        if (!Array.isArray(data.counties)) throw new Error("縣市長資料格式錯誤");
+        observation.mayorMetrics = data;
+        observation.contestBoard?.setMayorData(data);
+      } catch(error) { if (generation === routeGeneration) showRouteError(error); return; }
+    }
+    // 正確保留其他公職 enum
+    observation.activeOffice = primary;
+    if (tabMayor) { if (primary === "mayor") tabMayor.classList.add("active"); else tabMayor.classList.remove("active"); tabMayor.setAttribute("aria-pressed", String(primary === "mayor")); }
+    if (tabCouncil) { tabCouncil.classList.remove("active"); tabCouncil.setAttribute("aria-pressed", "false"); }
 
     if (observation.contestBoard) {
       observation.contestBoard.setMode("mayor");
@@ -4160,12 +4463,57 @@ async function handleHashRoute() {
 
     const county = parts[1];
     if (county) {
-      await observationNavigate("county", county);
+      await observationNavigate("county", county, true);
     } else {
-      observationNavigate("home");
+      observationNavigate("home", null, true);
       document.getElementById("tab-contest-board")?.click();
     }
   }
+  if (generation !== routeGeneration) return;
+  if (query.size && observation.shard) {
+    let district = query.get("district"), town = query.get("town"), village = query.get("village");
+    if (district) {
+      if (!observation.shard.districts.some(d => d.id === district && d.office === observation.office)) { showRouteError(new Error("找不到此公職選區")); return; }
+      observationNavigate("district", district, true);
+    }
+    if (town) {
+      await loadTownGeography();
+      if (generation !== routeGeneration) return;
+      if (parsed.canonical) town = observation.geography?.townships(observation.county).find(t => JSON.parse(t.key)[2] === town)?.label;
+      if (!town || !observation.geography?.townships(observation.county).some(t => t.label === town)) { showRouteError(new Error("找不到此鄉鎮市區")); return; }
+      try { await ensureVillageGeography(observation.county, town); }
+      catch(error) { if (generation === routeGeneration) showRouteError(error); return; }
+      if (generation !== routeGeneration) return;
+      observation.geography.villages = loadedVillages;
+      observation.mapError = null;
+      if (parsed.canonical && village) village = loadedVillages(observation.county,town).find(v => JSON.parse(v.key)[2] === village)?.label;
+      if (parsed.village && !village) { showRouteError(new Error("找不到此村里代碼")); return; }
+      observationNavigate("township", town, true);
+    }
+    if (village) {
+      if (!town || !observation.geography?.villages(observation.county,town).some(v => v.label === village)) { showRouteError(new Error("找不到此村里")); return; }
+      observationNavigate("village", village, true);
+    }
+  }
+  if (observation.county && observation.shard && !parsed.canonical) {
+    const code = (regions,label) => { const r=regions?.find(r=>r.label===label); return r ? JSON.parse(r.key)[2] : null; };
+    const canonical = globalThis.ElectionNavigation.serialize({office:primary,county:code(observation.geography?.counties,observation.county),district:observation.district,town:code(observation.geography?.townships(observation.county),observation.township),village:code(observation.geography?.villages(observation.county,observation.township),observation.village)});
+    window.history.replaceState(window.history.state, "", canonical);
+  }
+  const candidate = routeCandidateIndex();
+  if (candidate === null && new URLSearchParams(hash.split("?")[1] || "").has("candidate")) {
+    observationDetail.prepend(element("p", "observation-note", "候選人連結的名冊版本已變動或未標版本；請重新搜尋姓名。已開啟原選區，不指定候選人。"));
+  }
+  if (candidate !== null && observation.district) {
+    const card = document.getElementById("card-roster");
+    const header = card?.querySelector(".card-header");
+    if (header?.getAttribute("aria-expanded") !== "true") header?.click();
+    const row = [...(card?.querySelectorAll("[data-candidate]") || [])].find(row=>row.dataset.candidate===candidate);
+    if (row) { row.classList.add("search-selected-candidate"); row.focus({preventScroll:true}); row.scrollIntoView({block:"center"}); }
+  }
+  observation.bottomSheet?.setDetent(desiredSurface || (observation.county ? "expanded" : "summary"));
+  if (typeof restoreObservationView === "function") restoreObservationView(savedView);
+  renderObservationMap();
   requestAnimationFrame(drawObservationMap);
 }
 
@@ -4296,9 +4644,111 @@ function observationMapBackAction() {
 function observationMapAction(region) {
   if (!observation.mapReady) return;
   const target = observationMapTarget(region);
-  if (target && !(target.level === "county" && observation.county)) observationNavigate(target.level, target.value);
+  if (target && !(target.level === "county" && observation.county)) { observation.nextSurface = "summary"; observationNavigate(target.level, target.value); }
+}
+function updateMobileSummary() {
+  const title = document.getElementById("mobile-summary-title"), value = document.getElementById("mobile-summary-value"), open = document.getElementById("mobile-summary-open");
+  if (!title || !value) return;
+  const district = observation.shard?.districts.find(d=>d.id===observation.district);
+  const metric = observation.councilMetrics?.districts.find(d=>d.map_district_id===observation.district);
+  title.textContent = observation.village || observation.township || district?.name || observation.county || (observation.activeOffice === "council" ? "全國議員選區" : "全國縣市長");
+  value.textContent = district ? (metric?.seats?.["2026"] ? `2026：${district.candidates.length} 人選 ${metric.seats["2026"]} 席` : `2026：${district.candidates.length} 人參選`) : "點選地圖或搜尋地區，再查看名冊與歷史";
+  open.textContent = observation.county ? "查看詳情" : "查看清單";
+}
+const councilMapCache=new Map(), councilMapPending=new Map(), councilMapErrors=new Map();
+let councilMapIndexPromise=null;
+function councilMapScope(){return observation.councilMapScope || "regional";}
+function loadCouncilMapCounty(county){
+  if(councilMapCache.has(county)||councilMapPending.has(county)||councilMapErrors.has(county))return;
+  const job=(async()=>{
+    const pointer=state.manifest.council_map_layers;
+    if(!pointer)throw new Error("缺少議員地圖索引");
+    if(!councilMapIndexPromise)councilMapIndexPromise=fetchJson(`data/${pointer.file}`,null,pointer.sha256).catch(e=>{councilMapIndexPromise=null;throw e;});
+    const index=await councilMapIndexPromise;if(index.schema!=="council-map-index-v1")throw new Error("地圖索引版本不符");
+    const part=index.counties[county];if(!part)throw new Error("此縣市沒有議員地方票差資料");
+    const data=await fetchJson(`data/${part.file}`,null,part.sha256);if(data.schema!=="council-map-county-v1"||data.county!==county)throw new Error("地圖資料範圍不符");
+    councilMapCache.set(county,data);while(councilMapCache.size>3){const old=[...councilMapCache.keys()].find(c=>c!==observation.county);councilMapCache.delete(old);}
+  })().catch(e=>councilMapErrors.set(county,e.message)).finally(()=>{councilMapPending.delete(county);if(observation.activeOffice==="council"&&observation.county===county)renderObservationMap();});
+  councilMapPending.set(county,job);
+}
+function councilLayerRecord(region){
+  const scope=councilMapScope(),layer=observation.councilMapLayer||"competition";
+  const kind=d=>(d.office_kind==="plains_indigenous"?"plain_indigenous":d.office_kind);
+  const metrics=(observation.councilMetrics?.districts||[]).filter(d=>d.county===region.county&&kind(d)===scope);
+  if(layer==="competition") {
+    let matches=metrics;
+    if(region.level!=="county") {
+      const town=region.township||region.label;
+      matches=metrics.filter(d=>{
+        const location=observation.manifest?.councilor_locations.find(l=>l.district_id===d.map_district_id);
+        if(location?.townships.includes(town))return true;
+        // Only parse an explicit single-town village list; multi-town prose remains unassigned.
+        if(region.level==="village" && location?.partial_townships?.length===1 && location.partial_townships[0]===town && location.scope_text.startsWith(town)) {
+          const names=location.scope_text.slice(town.length).split(/[、，,]/).map(n=>n.trim());return names.includes(region.label);
+        }
+        return false;
+      });
+      if(matches.length!==1)return {reason:"多選區或邊界未唯一核對，維持灰色定位"};
+    }
+    if(!matches.length||matches.some(d=>!Number.isFinite(d.cands_2026)||!(d.seats?.[2026]>0)))return null;
+    const candidates=matches.reduce((n,d)=>n+d.cands_2026,0),seats=matches.reduce((n,d)=>n+d.seats[2026],0);
+    return {value:candidates/seats,label:`2026 ${candidates} 人／${seats} 席＝${(candidates/seats).toFixed(2)} 人／席（${region.level==="county"?"全縣市此類別加總":`所屬選區第 ${matches[0].district_no} 區整體，非村里席次`}）`};
+  }
+  if(region.level==="county")return {reason:"縣市有多個議員選區，不合成單一末席票差"};
+  const town=region.township||region.label,village=region.level==="village"?region.label:null;
+  const rows=councilMapCache.get(region.county)?.areas[JSON.stringify([town,village,scope])];
+  if(!rows||rows.length!==1)return {reason:rows?.length>1?"涵蓋多個歷史選區，不混合末席配對":"尚無可用地方票差"};
+  const r=rows[0];if(r.status!=="ok")return {reason:`未著色：${({uncontested:"同額／無落選者",quota_only:"僅婦保席次",ambiguous_tie:"末席配對同票未能唯一判定",incomplete:"來源範圍不完整",zero_denominator:"有效票為零",missing_pair:"地方缺配對票數"})[r.status]||"來源不足"}`};
+  return {value:r.pct,label:`2022 ${r.district}：${r.winner}－${r.loser}，本地 ${r.numerator}／${r.denominator} 有效票＝${r.pct.toFixed(2)}%；${r.womenQuota?"常態席次口徑，另有婦保；":""}負值表示落選頭在此地票數較多`};
+}
+function renderCouncilLayerControls(legend){
+  let controls=document.getElementById("council-layer-controls");
+  if(!controls){controls=element("div","council-layer-controls");controls.id="council-layer-controls";(document.getElementById("map-dock-layers")||legend.parentElement).appendChild(controls);
+    for(const [key,label,options] of [["councilMapLayer","議員地圖指標",[["margin","2022 末席配對地方票差"],["competition","2026 候選人／席次"]]],["councilMapScope","地圖議員類別",[["regional","區域議員"],["plain_indigenous","平地原住民議員"],["mountain_indigenous","山地原住民議員"]]]]){
+      const select=document.createElement("select");select.id=key;select.setAttribute("aria-label",label);for(const [v,l] of options){const o=element("option","",l);o.value=v;select.appendChild(o);}select.addEventListener("change",()=>{observation[key]=select.value;renderObservationMap();saveObservationView();});controls.appendChild(select);
+    }
+  }
+  controls.hidden=observation.activeOffice!=="council";
+  if(!controls.hidden){document.getElementById("councilMapLayer").value=observation.councilMapLayer||"competition";document.getElementById("councilMapScope").value=councilMapScope();}
 }
 function renderObservationMap() {
+  if(observation.activeOffice==="council" && observation.district && observation.layerDistrict!==observation.district){
+    observation.layerDistrict=observation.district;
+    const metric=observation.councilMetrics?.districts.find(d=>d.map_district_id===observation.district);
+    if(metric)observation.councilMapScope=metric.office_kind==="plains_indigenous"?"plain_indigenous":metric.office_kind;
+  }
+  updateMobileSummary();
+  const dockActive=document.getElementById("map-dock-active");if(dockActive)dockActive.textContent=observation.activeOffice==="council"?(observation.councilMapLayer==="competition"?"2026 人數／席次":"2022 配對票差"):observation.activeOffice==="mayor"?"2022 縣市長票差":"行政區定位";
+  const layerGroup=document.getElementById("map-dock-layers");if(layerGroup)layerGroup.hidden=observation.activeOffice!=="council";
+  const legend = document.getElementById("map-legend-bar");
+  if (legend) {
+    renderCouncilLayerControls(legend);
+    const council = observation.activeOffice === "council";
+    legend.replaceChildren();
+    if(council){
+      const competition=observation.councilMapLayer==="competition";
+      legend.appendChild(element("strong","",competition?"2026 候選人／席次（人／席）":"2022 議員末席配對地方票差占有效票"));
+      const colors=state.mapTheme==="dark"?["#fbbf24","#d97706","#9a3412","#4c315b"]:["#9a3412","#d97706","#fcd34d","#e9dcf0"];
+      const bins=competition?[["≤1",colors[3]],[">1–1.5",colors[2]],[">1.5–2",colors[1]],[">2",colors[0]]]:[["<0（地方逆轉）",state.mapTheme==="dark"?"#a21caf":"#d946ef"],["0–1%",colors[0]],[">1–3%",colors[1]],[">3–6%",colors[2]],[">6%",colors[3]]];
+      for(const [label,color] of [...bins,["灰色：未提供／無法唯一對照",state.mapTheme==="dark"?"#737373":"#d4d4d4"]]){const item=element("span","swing-legend-item"),swatch=element("span","swing-indicator");swatch.style.background=color;item.append(swatch,document.createTextNode(label));legend.appendChild(item);}
+      legend.appendChild(element("small","",competition?"縣市顯示加總比；鄉鎮／村里繼承所屬選區整體比例，不代表當選機率。":"固定採全選區最後常態當選者與落選頭；不是村里內選出當選者。多歷史選區不混算。"));
+      if(!competition&&observation.county){loadCouncilMapCounty(observation.county);if(councilMapErrors.has(observation.county)){const retry=element("button","detail-card-action","票差載入失敗，重試");retry.addEventListener("click",()=>{councilMapErrors.delete(observation.county);renderObservationMap();});legend.appendChild(retry);}else if(!councilMapCache.has(observation.county))legend.appendChild(element("span","","票差載入中…"));}
+    } else if(observation.activeOffice!=="mayor")legend.appendChild(element("span","","灰色僅供行政區定位；此公職未提供比較指標"));
+    else {legend.appendChild(element("strong","","地圖：2022 縣市長票差占選舉人數"));["≤1%",">1–3%",">3–6%",">6%","無可比較資料"].forEach((label,i)=>{const item=element("span","swing-legend-item");item.append(element("span",`swing-indicator legend-tone-${i===4?"stripe":4-i}`),document.createTextNode(label));legend.appendChild(item);});}
+  }
+
+  const explanation=document.getElementById('map-metric-explanation');
+  if(explanation)explanation.textContent=legend?.querySelector('small')?.textContent || (observation.activeOffice==='mayor'?'2022 縣市長票差占選舉人數；不是 2026 開票或預測。':'灰色僅供行政區定位。');
+
+  let readout=document.getElementById("council-layer-summary");
+  if(observation.activeOffice==="council" && observation.county){
+    if(!readout){readout=element("p","observation-note");readout.id="council-layer-summary";readout.setAttribute("role","status");observationDetail.querySelector(".hero-summary")?.appendChild(readout);}
+    let record=councilLayerRecord({county:observation.county,level:observation.village?"village":observation.township?"township":"county",township:observation.township,label:observation.village||observation.township||observation.county});
+    if(observation.district&&!observation.township){const d=observation.councilMetrics?.districts.find(d=>d.map_district_id===observation.district);if(d && (d.office_kind==="plains_indigenous"?"plain_indigenous":d.office_kind)===councilMapScope()){const competition=observation.councilMapLayer==="competition",m=d.margin?.[2022];record={label:competition?`2026 本選區 ${d.cands_2026} 人／${d.seats[2026]} 席＝${(d.cands_2026/d.seats[2026]).toFixed(2)} 人／席`:`2022 本選區末席票差：${m?.pct==null?"無法計算":m.pct+"%"}（${m?.last_win||"—"}－${m?.first_lose||"—"}）`};}}
+    readout.textContent=`目前圖層：${record?.label||record?.reason||"資料未載入／無可用指標"}`;
+    let toggle=document.getElementById("council-layer-toggle");if(!toggle){toggle=element("button","detail-card-action");toggle.id="council-layer-toggle";toggle.type="button";toggle.addEventListener("click",()=>{observation.councilMapLayer=observation.councilMapLayer==="competition"?"margin":"competition";renderObservationMap();saveObservationView();});readout.after(toggle);}
+    toggle.textContent=observation.councilMapLayer==="competition"?"切換為 2022 末席配對地方票差":"切換為 2026 候選人／席次";
+  }else readout?.remove();
   const {county, office, township, geography, shard, manifest} = observation;
   const key = JSON.stringify([county, office, township]);
   if (key !== observation.mapKey) {
@@ -4320,7 +4770,7 @@ function renderObservationMap() {
   if (observationOffice) {
     clear(observationOffice);
     if (shard) {
-      Object.entries(manifest.offices).filter(([id])=>shard.districts.some(d=>d.office===id)).forEach(([id,label])=>{
+      Object.entries(manifest.offices).filter(([id])=>product.allowsOffice(id) && shard.districts.some(d=>d.office===id)).forEach(([id,label])=>{
         const option=element("option","",label); option.value=id; observationOffice.appendChild(option);
       });
       observationOffice.value=office || "";
@@ -4353,7 +4803,7 @@ function renderObservationMap() {
         button.addEventListener("click",()=>{if(observation.gate.isCurrent(generation) && !observation.county) observationMapAction(region);});
         observationIslands.appendChild(button);
         const projection=observationProjection(core.labelPlacement(region.polygons,region.hitPolygons).bbox,120,66,1,[0,0],5);
-        paintObservationRegion(mini.getContext("2d"),region,projection,state.mapTheme === "dark" ? "#5b4266" : "#dccbe3",false,null,state.mapTheme);
+        paintObservationRegion(mini.getContext("2d"),region,projection,core.observationRegionFill(region,null,{theme:state.mapTheme,mode:observation.activeOffice||"mayor",mayorMetrics:observation.mayorMetrics,...(observation.activeOffice==="council"?{councilLayer:observation.councilMapLayer||"competition",councilLayerRecord:councilLayerRecord(region)}:{})}).fill,false,null,state.mapTheme,{zoom:1,viewportWidth:mini.width,viewportHeight:mini.height});
       });
     }
     observation.mapBounds=[119.7,21.8,122.15,25.45];
@@ -4397,10 +4847,10 @@ function renderObservationMap() {
       if (observationMapStatus) observationMapStatus.textContent += `；${missing} 個${township ? "選區" : "鄉鎮市區"}無法唯一定位，請由名稱清單查閱。`;
     }
   }
-  if (!county && observation.nationalSwingReady) {
+  if (observation.activeOffice === "mayor" && !county && observation.nationalSwingReady) {
     const countyRecords = [...observation.nationalSwing.values()].flatMap(scopes => [...scopes.counties.values()]);
     if (observationMapStatus) observationMapStatus.textContent += ` · 黃邊標出本級搖擺或含搖擺村里的縣市（${countyRecords.filter(record => record.displayStatus).length} 個）`;
-  } else if (county && observation.swingData?.scopes) {
+  } else if (observation.activeOffice === "mayor" && county && observation.swingData?.scopes) {
     const scopes = observation.swingData.scopes;
     if (township) {
       const record = scopes.townships.get(`${county}／${township}`);
@@ -4428,23 +4878,16 @@ function renderObservationMap() {
   requestAnimationFrame(drawObservationMap);
 }
 function observationProjection(bounds,width,height,zoom=1,pan=[0,0],padding=28) {
-  const isDesktop = width > 960;
-  const isInspectorOpen = isDesktop ? !observation.inspectorCollapsed : (observation.bottomSheet?.getDetent?.() === "half");
-  const optical = globalThis.ElectionMapEngine && typeof globalThis.ElectionMapEngine.computeOpticalPadding === "function"
-    ? globalThis.ElectionMapEngine.computeOpticalPadding(width, height, isInspectorOpen)
-    : { offsetX: 0, offsetY: 0, padX: padding, padY: padding };
-  const panel = document.getElementById("observation-inspector");
-  if (isDesktop && isInspectorOpen && panel && panel.dataset.panelWidth === "wide") {
-    const occupied = Math.min(panel.getBoundingClientRect().width, width - 160);
-    optical.offsetX = -occupied / 2;
-    optical.padX = occupied / 2 + 25;
-  }
-  const padX = optical.padX ?? padding;
-  const padY = optical.padY ?? padding;
-  const ox = optical.offsetX ?? 0;
-  const oy = optical.offsetY ?? 0;
+  const thumbnail = padding === 5;
+  const mobile = !thumbnail && window.innerWidth < 1024;
+  const panel = document.getElementById('observation-inspector');
+  const landscape = mobile && innerHeight <= 500 && innerWidth > innerHeight;
+  const occupied = mobile && !landscape ? Math.min(panel?.dataset.detent === 'summary' ? panel.getBoundingClientRect().height : 150, height * .45) : 0;
+  const padX = thumbnail ? padding : 18;
+  const padY = thumbnail ? padding : occupied / 2 + 18;
+  const ox = 0, oy = -occupied / 2;
   const cosine=Math.cos((bounds[1]+bounds[3])*Math.PI/360);
-  const scale=Math.min(Math.max(width-padX*2,120)/Math.max((bounds[2]-bounds[0])*cosine,1e-6),Math.max(height-padY*2,120)/Math.max(bounds[3]-bounds[1],1e-6))*zoom;
+  const scale=Math.min(Math.max(width-padX*2,12)/Math.max((bounds[2]-bounds[0])*cosine,1e-6),Math.max(height-padY*2,12)/Math.max(bounds[3]-bounds[1],1e-6))*zoom;
   const cx=(bounds[0]+bounds[2])/2,cy=(bounds[1]+bounds[3])/2;
   const originX = width/2 + ox + pan[0];
   const originY = height/2 + oy + pan[1];
@@ -4472,7 +4915,7 @@ function observationMapPanBy(dx,dy) {
   drawObservationMap();
 }
 function observationSwingRecord(region) {
-  if (!region) return null;
+  if (!region || observation.activeOffice !== "mayor") return null;
   if (region.level === "county") return observation.nationalSwing.get(region.county)?.counties.get(region.county) || null;
   if (region.level === "township") return observation.swingData?.scopes?.townships.get(`${region.county}／${region.township || region.label}`) || null;
   if (region.level === "village") return observation.swingAnalysis?.get(`${region.county}／${region.township}／${region.label}`) || null;
@@ -4511,13 +4954,6 @@ function paintObservationRegion(context,region,projector,fill,active,swingStatus
     sctx.stroke();
     context.fillStyle = context.createPattern(stripeCanvas, "repeat");
     context.fill("evenodd");
-  } else if (active && typeof context.save === "function") {
-    context.save();
-    context.shadowColor = theme === "dark" ? "rgba(56, 189, 248, 0.75)" : "rgba(2, 132, 199, 0.55)";
-    context.shadowBlur = 18;
-    context.fillStyle = fill;
-    context.fill("evenodd");
-    context.restore();
   } else {
     context.fillStyle = fill;
     context.fill("evenodd");
@@ -4541,6 +4977,11 @@ function paintObservationRegion(context,region,projector,fill,active,swingStatus
     context.setLineDash(boundary.dash || []);
     context.stroke();
     context.setLineDash([]);
+  }
+  if (boundary.interaction) {
+    context.strokeStyle = boundary.innerColor;
+    context.lineWidth = boundary.innerWidth;
+    context.stroke();
   }
 }
 function drawObservationMap() {
@@ -4595,7 +5036,13 @@ function drawObservationMap() {
   const projection=observationProjection(observation.mapBounds,rect.width,rect.height,observation.mapZoom,observation.mapPan);
   observation.mapProjection=projection;
   const regions=observation.mapRegions.filter(r=>observation.county || !observationIslandNames.includes(r.county));
-  const swingMap = observation.swingAnalysis || null;
+  const swingMap = observation.activeOffice === "mayor" ? observation.swingAnalysis : null;
+  const interactionPriority=region=>{
+    const target=observationMapTarget(region);
+    return observation.mapHover===region.key ? 2 :
+      (target?.level==='district'&&target.value===observation.district)||(target?.level==='village'&&target.value===observation.village) ? 1 : 0;
+  };
+  regions.sort((a,b)=>interactionPriority(a)-interactionPriority(b));
   regions.forEach(region=>{
     const target=observationMapTarget(region);
     const selected=(target?.level==="district" && target.value===observation.district)
@@ -4615,27 +5062,30 @@ function drawObservationMap() {
       theme: state.mapTheme,
       selected: Boolean(selected),
       hover: Boolean(hover),
-      mode: observation.activeOffice === "council" ? "council" : "mayor",
+      mode: observation.activeOffice || "mayor",
       mayorMetrics: observation.mayorMetrics,
       councilMetrics: observation.councilMetrics,
       councilorLocations: observation.manifest?.councilor_locations,
+      ...(observation.activeOffice==="council"?{councilLayer:observation.councilMapLayer||"competition",councilLayerRecord:councilLayerRecord(region)}:{}),
       isTargetable: Boolean(target),
     }) : null;
     const fill = fillResult ? fillResult.fill : (selected || hover ? (dark ? "#596777" : "#eacb88")
       : target || region.level === "county" ? (dark ? "#384856" : "#b4d1ce")
         : (dark ? "#293541" : "#dce3e2"));
-    paintObservationRegion(context,region,projection,fill,selected || hover,effectiveSwingStatus,state.mapTheme,{ zoom: observation.mapZoom });
+    paintObservationRegion(context,region,projection,fill,selected || hover,effectiveSwingStatus,state.mapTheme,{ zoom: observation.mapZoom, viewportWidth: rect.width, viewportHeight: rect.height, featurePixels: Math.min(Math.abs(projection.project([region.bbox[0],region.bbox[1]])[0]-projection.project([region.bbox[2],region.bbox[3]])[0]),Math.abs(projection.project([region.bbox[0],region.bbox[1]])[1]-projection.project([region.bbox[2],region.bbox[3]])[1])) });
   });
   context.font="600 12px system-ui";context.textAlign="center";context.textBaseline="middle";
   const candidates=regions.map(region=>{
     const place=core.labelPlacement(region.polygons,region.hitPolygons),center=projection.project(place.anchor),w=context.measureText(region.label).width+8;
-    return {region,center,priority:observation.mapHover===region.key ? Infinity : place.area,box:[center[0]-w/2,center[1]-9,center[0]+w/2,center[1]+9]};
-  }).filter(c=>c.center[0]>15 && c.center[0]<rect.width-15 && c.center[1]>15 && c.center[1]<rect.height-15);
-  core.selectNonOverlappingLabels(candidates).forEach(({region,center})=>{context.strokeStyle=dark?"#111820":"#fff";context.lineWidth=3;context.strokeText(region.label,...center);context.fillStyle=dark?"#f1f5f9":"#203f43";context.fillText(region.label,...center);});
+    const extent=projection.project([place.bbox[2],place.bbox[3]]),start=projection.project([place.bbox[0],place.bbox[1]]);
+    return {region,center,fits:Math.abs(extent[0]-start[0])>=w && Math.abs(extent[1]-start[1])>=20,priority:observation.mapHover===region.key ? Infinity : place.area,box:[center[0]-w/2,center[1]-9,center[0]+w/2,center[1]+9]};
+  }).filter(c=>c.fits && c.center[0]>15 && c.center[0]<rect.width-15 && c.center[1]>15 && c.center[1]<rect.height-15);
+  core.selectNonOverlappingLabels(candidates).forEach(({region,center})=>{context.strokeStyle=dark?"#111820":"#fff";context.lineWidth=1.8;context.strokeText(region.label,...center);context.fillStyle=dark?"#f1f5f9":"#203f43";context.fillText(region.label,...center);});
   const zoomInBtn = document.getElementById("observation-map-zoom-in");
   if (zoomInBtn) zoomInBtn.disabled = observation.mapZoom >= 6;
   const zoomOutBtn = document.getElementById("observation-map-zoom-out");
   if (zoomOutBtn) zoomOutBtn.disabled = observation.mapZoom <= 1;
+  if (!performance.getEntriesByName("observation-first-map").length && document.querySelector(".contest-item")) performance.mark("observation-first-map");
 }
 function observationRegionAt(event) {
   if (!observation.mapReady || !observation.mapProjection) return null;
@@ -4657,14 +5107,12 @@ function observationHoverRegion(region, event = null) {
     const marker = (swingData.displayStatus || swingData.status) === "close_swing" ? "🔴🟡" : "🟡";
     swingText = ` · ${marker} ${observationSwingStatusText(swingData, region.level)}`;
   }
-  const districtSwing = target?.level === "district" ? observation.swingData?.scopes?.councilDistricts.get(target.value) : null;
+  const districtSwing = product.council && observation.activeOffice === "mayor" && target?.level === "district" ? observation.swingData?.scopes?.councilDistricts.get(target.value) : null;
   const districtSwingText = districtSwing?.displayStatus ? ` · 議員選區${swingDisplayLabel(districtSwing, "")}` : "";
   if (observationMapHover) {
     observationMapHover.textContent=region ? `${region.label}${district ? ` · ${district.name} · ${district.candidates.length} 人登記` : target?.level==="township" && ["metro_councilor","county_councilor"].includes(observation.office) ? (observation.district ? " · 點選進入檢視轄下村里" : " · 按村里劃分，點選選區清單") : target?.level==="village" ? " · 點選檢視村里選情" : target && !(target.level==="county" && observation.county) ? " · 點選查看" : " · 行政區定位"}${swingText}` : "";
+    if(region && observation.activeOffice==="council"){const record=councilLayerRecord(region);observationMapHover.textContent+=` · ${record?.label||record?.reason||"無可用指標"}`;}
     if (region && districtSwingText) observationMapHover.textContent += districtSwingText;
-  }
-  if (region && event && globalThis.ElectionMapEngine && typeof globalThis.ElectionMapEngine.positionMapTooltip === "function" && observationMapHover) {
-    globalThis.ElectionMapEngine.positionMapTooltip(observationMapHover, event.clientX, event.clientY, observationMapCanvas.getBoundingClientRect());
   }
   if (observationMapCanvas) observationMapCanvas.style.cursor=target ? "pointer" : "grab";
   drawObservationMap();
@@ -4756,5 +5204,38 @@ observationMapCanvas.addEventListener("keydown",event=>{
 });
 window.addEventListener("resize",()=>requestAnimationFrame(drawObservationMap));
 
+function initializeMapDock(){
+  const header=document.querySelector('.topbar'),map=document.querySelector('.observation-map-card');
+  const bar=element('section','map-command-bar');bar.id='map-command-bar';bar.dataset.tourAnchor='map-controls';bar.setAttribute('aria-label','地圖圖例與控制');
+  const row=element('div','map-command-row');bar.appendChild(row);
+  row.appendChild(document.querySelector('.observation-map-toolbar'));
+  row.appendChild(document.querySelector('.observation-map-tools'));
+  const islands=document.getElementById('observation-islands-wrapper');
+  const islandMenu=document.createElement('details');islandMenu.className='header-islands';
+  islandMenu.append(element('summary','','離島'),islands);row.appendChild(islandMenu);
+  const dock=document.createElement('details');dock.id='map-dock';
+  const summary=element('summary','','圖層與說明');dock.appendChild(summary);
+  const content=element('div','map-dock-content');dock.appendChild(content);
+  const active=element('strong','','');active.id='map-dock-active';content.appendChild(active);const explanation=element('p','');explanation.id='map-metric-explanation';content.appendChild(explanation);
+  const layers=document.createElement('details');layers.id='map-dock-layers';layers.open=true;layers.appendChild(element('summary','','切換圖層'));content.appendChild(layers);
+  const tools=document.createElement('details');tools.id='map-dock-tools';tools.open=true;tools.append(element('summary','','篩選與資料狀態'),document.getElementById('observation-filter-bar'),document.getElementById('observation-map-status'));content.appendChild(tools);
+  row.appendChild(dock);
+  const legend=document.createElement('details');legend.id='map-dock-legend';legend.open=true;
+  legend.append(element('summary','sr-only','色彩圖例'),document.getElementById('map-legend-bar'));bar.appendChild(legend);
+  bar.appendChild(document.getElementById('observation-map-hover'));header.appendChild(bar);
+  for(const menu of [dock,islandMenu])menu.addEventListener('keydown',e=>{if(e.key==='Escape'){menu.open=false;menu.querySelector('summary').focus();}});
+  map.addEventListener('pointerdown',()=>{dock.open=false;islandMenu.open=false;});
+  const panel=document.getElementById('observation-inspector');
+  function sync(){
+    const landscape=innerWidth<1024&&innerHeight<=500&&innerWidth>innerHeight;
+    map.inert=(innerWidth<1024&&!landscape&&panel.dataset.detent==='expanded')||panel.classList.contains('reading');
+    islandMenu.hidden=!!observation.county;
+    requestAnimationFrame(drawObservationMap);
+  }
+  new MutationObserver(sync).observe(panel,{attributes:true,attributeFilter:['data-detent','class']});
+  new MutationObserver(sync).observe(document.getElementById('observation-islands'),{childList:true});
+  window.addEventListener('resize',sync);sync();
+}
+initializeMapDock();
 setMapInteractionEnabled(false);
 initialize();

@@ -1,11 +1,12 @@
 {
   "schema": "election-machine-offline-release-v1",
-  "version": "v78",
+  "version": "v87",
   "data_manifest": "data/manifest.json",
   "start_year": 2014,
   "end_year": 2026,
   "election_count": 99,
   "observation_as_of": "2026-10-16",
   "roster_status": "approved",
-  "fully_offline": true
+  "fully_offline": true,
+  "product_profile": "mayor"
 }
