@@ -307,7 +307,7 @@ function appendMayorCoverageNote(parent, year, names) {
   const originalCity = info.scope && year < 2010 && ["臺中市","臺南市","高雄市"].includes(names[0]);
   parent.appendChild(element("p", "history-chart-note", `${year} 年首長選舉範圍：${coverage}。${info.scope
     ? `本表為當年的${names[0]}${originalCity ? "（縣市合併前）" : ""}；原始資料層級為${info.scope.source_grain === "township" ? "鄉鎮市區" : info.scope.source_grain === "village" ? "村里" : "投開票所"}。`
-    : "所選縣市名稱不在當年的選舉範圍內，留空不表示零票。"}`));
+    : "所選縣市名稱不在當屆選舉範圍內，故無該年度紀錄。"}`));
   if (info.historicalCounty) {
     const button = element("button", "history-link", `查看${info.historicalCounty}（${year} 原始範圍）`);
     button.type = "button";
@@ -405,7 +405,7 @@ async function loadHistoryCounty(names = [historyCounty.value], refresh = false,
     historyTown.disabled = false;
     if (names[1]) {
       if (![...historyTown.options].some((option) => option.value === names[1])) {
-        historyStatus.textContent = `${names.join("／")}：沒有同名歷史來源範圍；請另選鄉鎮市區。`;
+        historyStatus.textContent = `${names.join("／")}：查無對應之歷史開票範圍，請選擇其他行政區。`;
         return;
       }
       historyTown.value = names[1];
@@ -437,11 +437,11 @@ function updateHistoryVillages(village = "", selectedYear = null) {
     if (limited) {
       historyVillage.value = "";
       renderHistory(selectedYear);
-      historyStatus.textContent += `｜${village} 無可唯一對位的村里紀錄，已改顯示鄉鎮合計。`;
+      historyStatus.textContent += `｜${village} 歷屆邊界多次調整，改以全鄉鎮合計呈現。`;
       return;
     }
     clearHistoryContent();
-    historyStatus.textContent = `${historyCounty.value}／${historyTown.value}／${village}：沒有同名歷史來源範圍，未推算合併或拆分後的票數。`;
+    historyStatus.textContent = `${historyCounty.value}／${historyTown.value}／${village}：歷屆查無完全一致之對應村里，不估算合併或重劃前後票數。`;
     return;
   }
   historyVillage.value = village;
@@ -547,7 +547,7 @@ function renderHistoryChart(area, selectedYear = null) {
     button.addEventListener("click", () => { selected = index; update(); }); years.appendChild(button); return button;
   }); board.appendChild(years);
   const values = element("div", "history-chart-values"); values.id = "history-chart-values"; values.setAttribute("aria-live", "polite"); board.appendChild(values);
-  board.appendChild(element("p", "history-chart-note", "各線為原始黨籍合計，無黨籍可能含多人。各種選舉分開連線；缺漏留空、不跨同類選舉空缺連線。村里未能唯一對位的年份，請查看鄉鎮合計。"));
+  board.appendChild(element("p", "history-chart-note", "折線依政黨得票走勢繪製，無黨籍包含所有獨立參選人合計。若該年度村里邊界異動，請參考鄉鎮合計。"));
   historyContent.appendChild(board);
   let plot = null;
   const formatted = (value) => value === null || value === undefined ? "—" : historyMetric === "votes_per_elector" ? `${(value * 100).toFixed(2)}%` : formatNumber(value);
@@ -601,7 +601,7 @@ function renderHistoryChart(area, selectedYear = null) {
   }
   function update() {
     historyMetric = select.value; filters.hidden = historyMetric === "electorate";
-    unit.textContent = historyMetric === "votes_per_elector" ? "催票率＝得票數 ÷ 選舉人數；0–100%" : historyMetric === "votes" ? "單位：票；縱軸從 0 起算" : "單位：人；各類選舉分別呈現";
+    unit.textContent = historyMetric === "votes_per_elector" ? "催票率（實得票數 ÷ 選舉人數）" : historyMetric === "votes" ? "單位：得票數" : "單位：選舉人數";
     canvas.setAttribute("aria-label", `${area.names.join("／")}，${select.selectedOptions[0].textContent}折線圖，年份 ${chart.years.join("、")}；圓點為縣市首長，三角形為總統。選擇下方年份可讀取數值。`);
     yearButtons.forEach((button, index) => button.setAttribute("aria-pressed", String(index === selected)));
     clear(values);
@@ -609,7 +609,7 @@ function renderHistoryChart(area, selectedYear = null) {
     const status = chart.status[selected];
     const race = source.elections[0];
     const limited = area.granularity_limits.some((limit) => limit.year === chart.years[selected]);
-    values.appendChild(element("strong", "", `${chart.years[selected]} 年｜${status === "multiple" ? "同年多場選舉，請看明細" : status === "missing" ? limited ? "村里層級不可用，請查看鄉鎮合計" : "此年同名範圍未收錄；不表示零票" : `${typeLabel(race.type)}選舉${race.kind === "rerun" ? "（重行選舉）" : ""}｜選舉人數 ${race.electorate === null ? "缺漏" : formatNumber(race.electorate)} 人`}`));
+    values.appendChild(element("strong", "", `${chart.years[selected]} 年｜${status === "multiple" ? "同年多場選舉，請看明細" : status === "missing" ? limited ? "該年度僅提供鄉鎮層級數據" : "該年度查無對應區域紀錄" : `${typeLabel(race.type)}選舉${race.kind === "rerun" ? "（重行選舉）" : ""}｜選舉人數 ${race.electorate === null ? "缺漏" : formatNumber(race.electorate)} 人`}`));
     appendHistoryGranularityNote(values, area, chart.years[selected]);
     appendMayorCoverageNote(values, chart.years[selected], area.names);
     if (race?.invalid_vote_area_count) values.appendChild(element("p", "quality-note", `${race.invalid_vote_area_count} 個來源單位的票數不一致，得票與催票率留空；請展開該年明細。`));
@@ -619,7 +619,7 @@ function renderHistoryChart(area, selectedYear = null) {
         const item = element("div"); const index = s.years.indexOf(chart.years[selected]);
         item.append(element("dt", "", `${typeLabel(s.type)}・${historyMetric === "electorate" ? s.party : historyPartyLabel(s.party)}`), element("dd", "", formatted(s.values[index]))); numbers.appendChild(item);
       }); values.appendChild(numbers);
-      values.appendChild(element("p", "history-chart-note", "— 表示此年無該黨紀錄或資料無法計算。點選年份查看數值；下方可展開候選人明細與資料限制。"));
+      values.appendChild(element("p", "history-chart-note", "「—」表示該年度無該黨參選紀錄或數據不足。點選年份可切換數值，下方可展開詳細得票清單。"));
     }
     appendHistorySourceNote(values, race, area.names);
     draw();
@@ -642,7 +642,7 @@ function renderHistory(selectedYear = null) {
   const area = historyShard?.areas.find((candidate) => JSON.stringify(candidate.names) === JSON.stringify(names));
   if (!area) { historyStatus.textContent = "此歷史來源範圍無收錄資料。"; return; }
   document.getElementById("history-heading").textContent = `${names[names.length - 1]}・歷屆變化`;
-  historyStatus.textContent = `${names.join("／")}｜各年來源範圍；區界未換算`;
+  historyStatus.textContent = `${names.join("／")}｜歷屆開票數據對照`;
   if (area.granularity_limits.length) historyStatus.textContent += "｜部分年份僅提供鄉鎮層級，請選年份查看。";
   else if (names.length === 2 && historyVillage.disabled) historyStatus.textContent += "｜此範圍僅提供鄉鎮層級。";
   renderHistoryChart(area, selectedYear);
@@ -654,12 +654,12 @@ function renderHistory(selectedYear = null) {
     card.appendChild(element("summary", "", `${period.year} 年${limited ? " · 部分或全部選舉僅提供鄉鎮層級" : missing ? " · 未收錄此年同名範圍" : " · 展開候選人票數與資料限制"}`));
     appendHistoryGranularityNote(card, area, period.year);
     appendMayorCoverageNote(card, period.year, area.names);
-    if (missing && !limited) card.appendChild(element("p", "history-missing", "未收錄此年同名範圍的選舉紀錄；不表示零票。也可能因名稱或區界變更而無法直接對照。"));
+    if (missing && !limited) card.appendChild(element("p", "history-missing", "該年度查無對應行政區之開票紀錄，可能因歷史行政區劃整併或調整所致。"));
     period.elections.forEach((election) => {
       card.appendChild(element("h4", "", `${election.name}${election.kind === "rerun" ? "（重行選舉）" : ""}`));
       card.appendChild(element("p", "detail-meta", election.date || "確切投票日期未收錄"));
       appendHistorySourceNote(card, election, area.names);
-      if (election.invalid_vote_area_count) card.appendChild(element("p", "quality-note", `票數無法核對：${election.invalid_vote_area_count} 個來源單位的候選人合計與有效票不一致。本範圍得票數與催票率留空，不使用局部合計。`));
+      if (election.invalid_vote_area_count) card.appendChild(element("p", "quality-note", `數據異常：有 ${election.invalid_vote_area_count} 個開票所之得票合計與官方有效票不符，為求精確該項暫不計入。`));
       const counts = element("dl", "metric-grid");
       counts.appendChild(metric("選舉人數", election.electorate === null ? "資料不完整" : formatNumber(election.electorate)));
       counts.appendChild(metric("來源地理單位", formatNumber(election.source_area_count)));
@@ -1134,7 +1134,7 @@ function showSecondLevel(county) {
 
 function showVillageLevel(parent) {
   if (!core.canDrillToVillage(parent)) {
-    updateMapNavigation("此範圍無可唯一對位的村里資料，僅顯示鄉鎮層級；可由地區清單查看合計。");
+    updateMapNavigation("該區村里劃分調整頻繁，僅顯示鄉鎮層級；完整合計請參考地區清單。");
     return false;
   }
   const villages = state.mapHierarchy.villages(parent);
@@ -1144,7 +1144,7 @@ function showVillageLevel(parent) {
     : "";
   const supplementalCount = (parent.supplementalAreaIndexes || []).length;
   const supplementalWarning = supplementalCount
-    ? `本層地圖另有 ${supplementalCount.toLocaleString("zh-TW")} 筆上層來源資料未能唯一對位，不參與地圖著色與地圖詳情；完整區域總計請由地區清單查看。`
+    ? `本層另有 ${supplementalCount.toLocaleString("zh-TW")} 筆跨村里資料未納入地圖填色，完整合計請參考清單。`
     : "";
   const warning = [fallbackWarning, supplementalWarning].filter(Boolean).join(" ");
   setMapRegions(villages, "village", "village", [...state.mapPath, parent], warning);
@@ -1594,7 +1594,7 @@ function showHierarchySecondLevel(county) {
 
 function showHierarchyVillageLevel(parent) {
   if (!core.canDrillToVillage(parent)) {
-    updateHierarchyNavigation("此範圍無可唯一對位的村里資料，僅顯示鄉鎮層級；選擇鄉鎮查看合計。");
+    updateHierarchyNavigation("該區村里劃分調整頻繁，僅顯示鄉鎮層級；請選擇鄉鎮查看合計。");
     return false;
   }
   const villages = state.mapHierarchy.villages(parent);
@@ -2831,7 +2831,7 @@ function loadNationalSwingSummary() {
 function appendObservationSwingSummary(parent) {
   const section = element("section", "swing-summary");
   section.appendChild(element("h3", "", "歷屆搖擺區域"));
-  section.appendChild(element("p", "swing-summary-note", product.council ? "依四屆首長得票與公告議員選區範圍對照搖擺區域。" : "依 2010、2014、2018、2022 四屆縣市長選舉得票觀察政黨輪替；激戰標記使用 2022 催票率差距 ≤3%。歷史結果不是 2026 開票或預測。"));
+  section.appendChild(element("p", "swing-summary-note", product.council ? "以歷屆首長得票走勢對照議員選區，協助觀察哪些選區較具搖擺特性。此為歷史資料，評估最新選情時應考量現況變數。" : "本區彙整歷屆縣市長得票走勢，協助觀察哪些選區板塊較具搖擺特性。此為 2022 年（四年前）之歷史開票數據，評估最新選情時，仍應綜合考量當前政治局勢與現實變數。"));
 
   if (!observation.county) {
     if (!historyPointer) {
@@ -3012,14 +3012,14 @@ function appendLocalHistoryCard(names) {
   const card = createCollapsibleCard({
     id: "local-history", icon: "📊", title: "歷屆投票率與政黨催票率（2014–2022）", defaultOpen: false,
     contentFn: async (body, context) => {
-      const status = element("p", "observation-note", "正在核對各層級歷屆票數…");
+      const status = element("p", "observation-note", "正在載入歷屆開票數據…");
       body.appendChild(status);
       const entry = historyPointer?.counties.find(c => c.name === names[0]);
       if (!entry) { status.textContent = "此地區沒有可用的歷史資料。"; return; }
       const localResults = await loadLocalHistorySummary(names, context.signal);
           if (!context.isCurrent()) return;
           clear(body);
-          body.appendChild(element("p", "observation-note", "此圖呈現本行政區歷屆縣市長選舉；催票率為政黨得票數除以選舉人數。各屆行政邊界可能不同；摘要在建置時核對有效票、投票數與選舉人數。"));
+          body.appendChild(element("p", "observation-note", "本圖表呈現該行政區歷屆縣市長開票趨勢。催票率為政黨實得票數除以全體選舉人數，可觀察整體公民動員水準變化。"));
           const bars = element("div", "history-stacked-comparison");
           const partyUniverse = localResults.flatMap(item => item.parties || []);
           localResults.forEach(item => {
@@ -3051,7 +3051,7 @@ function appendCouncilLocalHistory(names, parent) {
     for(const [value,label] of Object.entries(labels)){const option=element("option","",label);option.value=value;select.appendChild(option);}
     select.value=metric?.office_kind==="plains_indigenous"?"plain_indigenous":metric?.office_kind||"regional";
     if(!select.value)select.value="regional";
-    body.append(select,element("p","observation-note","以下為歷史同名行政區的議員票數，各屆選區與選民範圍可能不同。區域、平地及山地原住民分開呈現；有效票占比與催票率（得票／選舉人數）分開計算，不是 2026 預測，也不計算村里末席差距。"));
+    body.append(select,element("p","observation-note","以下呈現歷史開票數據，區域與原住民議員分開計算。歷屆選區範圍若有調整，數據僅供板塊趨勢參考。"));
     const host=element("div","");body.appendChild(host);let generation=0;
     const load=async()=>{
       const token=++generation,scope=select.value;host.replaceChildren(element("p","observation-note","正在讀取議員歷史票數…"));
@@ -3062,7 +3062,7 @@ function appendCouncilLocalHistory(names, parent) {
         if(index.schema!=="council-local-index-v1")throw new Error("議員歷史索引版本不符");
         const entry=index.areas[JSON.stringify([names[0],names[1],scope])];
         const resource=entry?.resource || entry?.villages?.[names[2]||""];
-        if(!resource){if(token===generation&&context.isCurrent())host.replaceChildren(element("p","observation-missing","此類別沒有經核對的地方歷史資料；不是零票。"));return;}
+        if(!resource){if(token===generation&&context.isCurrent())host.replaceChildren(element("p","observation-missing","此類別查無對應之歷史開票紀錄。"));return;}
         const data=await fetchJson(`data/${resource.file}`,context.signal,resource.sha256);
         if(!context.isCurrent()||token!==generation)return;
         if(data.schema!=="council-local-records-v1"||data.county!==names[0]||data.town!==names[1]||data.scope!==scope)throw new Error("議員歷史資料範圍不符");
@@ -3260,7 +3260,7 @@ function appendSwingDistrictDetail(parent, district) {
   };
 
   if (!record.comparable) {
-    section.appendChild(element("p", "swing-summary-note", "此選區的首長歷史資料未涵蓋全部四屆，目前不判定本級黨籍變化；已對應範圍內可辨識的搖擺村里仍會另行列出。"));
+    section.appendChild(element("p", "swing-summary-note", "該選區歷屆首長資料因行政區劃變更有部分年份缺漏，不計入跨屆政黨變動，但仍列出所屬之搖擺村里。"));
     if (record.swingVillageKeys.length) {
       section.appendChild(observationTable("此議員選區可對應範圍內的搖擺村里", ["鄉鎮／村里", "分類", "黨籍變化與差距"], makeVillageRows(record.swingVillageKeys)));
     }
@@ -3866,11 +3866,11 @@ function renderObservationDistrict(id, reveal = false) {
   if (isCouncilor && observation.councilorLens === "councilor") {
     kpi2.querySelector(".kpi-label").textContent = "2026 候選人與席次";
     kpi2.querySelector(".kpi-val").textContent = councilMetric?.seats?.["2026"] ? `${d.candidates.length} 人選 ${councilMetric.seats["2026"]} 席` : `${d.candidates.length} 人參選 · 席次待核對`;
-    kpi2.querySelector(".kpi-sub").textContent = "審定名冊 2026-10-16 · 不代表當選機率";
+    kpi2.querySelector(".kpi-sub").textContent = "中選會 2026-10-16 公告名冊";
     kpi3.querySelector(".kpi-label").textContent = "2022 末席差距";
     kpi3.querySelector(".kpi-sub").textContent = councilMetric?.margin?.["2022"]?.pct != null ? `占該屆有效票 ${councilMetric.margin["2022"].pct}%` : "資料不足或同額，無法比較";
     for (const text of globalThis.ElectionContestBoard.councilStatus(councilMetric || {})) kpi3.appendChild(element("small", "kpi-sub", text));
-    if (d.candidates.length === councilMetric?.seats?.["2026"]) kpi2.appendChild(element("small", "kpi-sub", "人數等於席次；不代表必然當選"));
+    if (d.candidates.length === councilMetric?.seats?.["2026"]) kpi2.appendChild(element("small", "kpi-sub", "參選人數與應選席次相同（同額競選）"));
     kpiGrid.append(kpi2,kpi3);
   } else kpiGrid.append(kpi1,kpi2,kpi3,kpi4);
   hero.insertBefore(kpiGrid, hero.querySelector(".metric-method"));
@@ -3922,9 +3922,9 @@ function renderObservationDistrict(id, reveal = false) {
     defaultOpen: false,
     contentFn: (body) => {
       const candidates = [...d.candidates].sort((a,b)=>a.registered_on.localeCompare(b.registered_on)||(a.name||"").localeCompare(b.name||"","zh-Hant"));
-      body.appendChild(element("p", "observation-note", "候選人資格經審定公告，名冊依官方正式登記資料列示。排序為登記日期、姓名："));
+      body.appendChild(element("p", "observation-note", "名冊依中選會正式登記公告列示，排序依登記日期及姓名："));
       if (d.candidates.some(c=>c.name_status==="unreadable")) {
-        body.appendChild(element("p", "observation-caution", "原始 PDF 的部分姓名無法完整辨識，暫不轉錄推測姓名；請開啟該筆官方來源核對。登記總數仍包含該筆。"));
+        body.appendChild(element("p", "observation-caution", "少數候選人姓名於官方公告字形罕見，為求正確不作臆測，請點選來源公報核對。"));
       }
       const table = observationTable("正式登記候選人名冊", ["姓名", "推薦政黨", "登記日期", "來源"], candidates.map(c=>[c.name ?? "姓名待核對（原始 PDF 字形缺漏）", c.party === "無" ? "無黨籍（未經政黨推薦）" : c.party, c.registered_on, observationSource(d.source_id,c.source_page)]));
       table.querySelectorAll("tbody tr").forEach((row,i) => { row.dataset.candidate = String(d.candidates.indexOf(candidates[i])); row.tabIndex = -1; row.classList.toggle("search-selected-candidate", routeCandidateIndex() === row.dataset.candidate); });
@@ -4078,8 +4078,8 @@ function renderObservationDistrict(id, reveal = false) {
     previewPills: ["中選會公報與歷屆資料庫"],
     defaultOpen: false,
     contentFn: (body) => {
-      body.appendChild(element("p", "observation-note", "催票率＝得票數 ÷ 選舉人數（代表候選人實際動員出全體選民的比例，可跨屆比較動員力）。"));
-      body.appendChild(element("p", "observation-note", `2026 縣市長候選人名冊資料基準：${observation.manifest.as_of}。`));
+      body.appendChild(element("p", "observation-note", "催票率（得票數 ÷ 選舉人數）：反映候選人在整體選民中的實質動員強度，較不易受單屆投票率波動影響。"));
+      body.appendChild(element("p", "observation-note", `候選人名冊公告基準日：${observation.manifest.as_of}。`));
       if (isCouncilor) {
         body.appendChild(element("p", "observation-note", "議員為多席次選舉，地圖以選區涵蓋之鄉鎮市區定位；激戰指標採「2022 最低票當選與落選頭差距」。"));
       }
@@ -4731,14 +4731,14 @@ function renderObservationMap() {
       const colors=state.mapTheme==="dark"?["#fbbf24","#d97706","#9a3412","#4c315b"]:["#9a3412","#d97706","#fcd34d","#e9dcf0"];
       const bins=competition?[["≤1",colors[3]],[">1–1.5",colors[2]],[">1.5–2",colors[1]],[">2",colors[0]]]:[["<0（地方逆轉）",state.mapTheme==="dark"?"#a21caf":"#d946ef"],["0–1%",colors[0]],[">1–3%",colors[1]],[">3–6%",colors[2]],[">6%",colors[3]]];
       for(const [label,color] of [...bins,["灰色：未提供／無法唯一對照",state.mapTheme==="dark"?"#737373":"#d4d4d4"]]){const item=element("span","swing-legend-item"),swatch=element("span","swing-indicator");swatch.style.background=color;item.append(swatch,document.createTextNode(label));legend.appendChild(item);}
-      legend.appendChild(element("small","",competition?"縣市顯示加總比；鄉鎮／村里繼承所屬選區整體比例，不代表當選機率。":"固定採全選區最後常態當選者與落選頭；不是村里內選出當選者。多歷史選區不混算。"));
+      legend.appendChild(element("small","",competition?"縣市顯示加總比；鄉鎮／村里顯示所屬選區整體比例。":"以該選區最後一位常態當選者與落選頭計算票差，供基層競爭強度參考。"));
       if(!competition&&observation.county){loadCouncilMapCounty(observation.county);if(councilMapErrors.has(observation.county)){const retry=element("button","detail-card-action","票差載入失敗，重試");retry.addEventListener("click",()=>{councilMapErrors.delete(observation.county);renderObservationMap();});legend.appendChild(retry);}else if(!councilMapCache.has(observation.county))legend.appendChild(element("span","","票差載入中…"));}
     } else if(observation.activeOffice!=="mayor")legend.appendChild(element("span","","灰色僅供行政區定位；此公職未提供比較指標"));
     else {legend.appendChild(element("strong","","地圖：2022 縣市長票差占選舉人數"));["≤1%",">1–3%",">3–6%",">6%","無可比較資料"].forEach((label,i)=>{const item=element("span","swing-legend-item");item.append(element("span",`swing-indicator legend-tone-${i===4?"stripe":4-i}`),document.createTextNode(label));legend.appendChild(item);});}
   }
 
   const explanation=document.getElementById('map-metric-explanation');
-  if(explanation)explanation.textContent=legend?.querySelector('small')?.textContent || (observation.activeOffice==='mayor'?'2022 縣市長票差占選舉人數；不是 2026 開票或預測。':'灰色僅供行政區定位。');
+  if(explanation)explanation.textContent=legend?.querySelector('small')?.textContent || (observation.activeOffice==='mayor'?'2022 縣市長票差占選舉人數比例':'灰色代表僅供行政區定位');
 
   let readout=document.getElementById("council-layer-summary");
   if(observation.activeOffice==="council" && observation.county){
@@ -4785,7 +4785,7 @@ function renderObservationMap() {
   observation.mapRegions=[];
   if (!observation.mapReady) {
     if (observationMapStatus) {
-      observationMapStatus.textContent=observation.mapError || (county && observation.countyError) || (county ? "正在核對本縣市名冊…" : "正在整理本地行政區圖資…");
+      observationMapStatus.textContent=observation.mapError || (county && observation.countyError) || (county ? "正在載入候選人名冊…" : "正在載入行政區圖資…");
     }
     if (observationMapFull) observationMapFull.hidden=true;
     drawObservationMap(); return;

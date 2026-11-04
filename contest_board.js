@@ -33,14 +33,14 @@
   function councilStatus(d) {
     const m = d.margin?.["2022"], cmp = d.comparability?.["2022_2026"];
     const notes = [];
-    if (cmp === "redistricted") notes.push("2022 舊選區資料，不能直接代表目前範圍");
-    else if (cmp === "seats_changed") notes.push("範圍一致，席次總額調整");
-    else if (cmp !== "comparable") notes.push("歷史範圍尚無法核對");
-    if (d.partial_townships?.length) notes.push("僅涵蓋部分行政區，請查看涵蓋範圍");
-    if (m?.uncontested) notes.push("2022 同額，沒有落選者可計算末席差距");
-    else if (m?.numerator == null || !(m?.denominator > 0)) notes.push("2022 票數或有效票資料不足");
-    if (m?.fallback_quota_only) notes.push("僅有婦保當選者；差距沿用來源 fallback，須審慎閱讀");
-    else if (m?.women_quota_applied) notes.push("2022 適用婦保；末席差距依一般當選席計算");
+    if (cmp === "redistricted") notes.push("該選區歷屆範圍曾調整，不直接對照");
+    else if (cmp === "seats_changed") notes.push("轄區範圍一致，應選席次有所增減");
+    else if (cmp !== "comparable") notes.push("歷屆範圍差異較大，暫不對照");
+    if (d.partial_townships?.length) notes.push("僅涵蓋該行政區部分村里，請查看詳細範圍");
+    if (m?.uncontested) notes.push("2022 年同額競選，無落選者差距數據");
+    else if (m?.numerator == null || !(m?.denominator > 0)) notes.push("2022 年票數或有效票數據不足");
+    if (m?.fallback_quota_only) notes.push("包含婦女保障當選席次，票差僅供參考");
+    else if (m?.women_quota_applied) notes.push("適用婦女保障名額，末席差距以一般當選席計算");
     return notes;
   }
   function compareCouncil(a, b, sort) {
@@ -142,7 +142,7 @@
 
     const sub = document.createElement("p");
     sub.className = "contest-board-sub";
-    sub.textContent = "依 2022 催票率差距排序，呈現 22 縣市拉鋸與政黨輪替";
+    sub.textContent = "依 2022 票差比例排序，盤點全臺 22 縣市選情激烈程度";
     header.appendChild(sub);
     parent.appendChild(header);
 

@@ -9,7 +9,7 @@
   const allowsOffice = office => offices.includes(office);
   return Object.freeze({
     id: 'mayor', council: false, offices, allowsOffice,
-    title: '台灣縣市長選舉：2022拉鋸地圖 → 2026拉票地圖',
+    title: '2022台灣縣市長選舉拉鋸地圖',
     acceptSearch: record => /^#\/mayor(?:\/|\?|$)/.test(record.route || '') && (!record.office || allowsOffice(record.office)),
     redirectRoute(parsed, navigation) {
       if (parsed.office === 'mayor') return null;

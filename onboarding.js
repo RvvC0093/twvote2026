@@ -4,10 +4,10 @@
   const key = 'twvote:welcome:1';
   let completed = false, step = 0, highlighted = null, opener = null, savedMapView = null;
   const steps = [
-    ['縣市長選舉觀察', '地圖著色使用 2022 縣市長歷史票差，搭配 2026 候選人名冊觀察地方選情；不是即時開票或勝選預測。', '#app-title'],
-    ['找到自己的選區', '搜尋地區或候選人，也可點地圖。全台首頁直接顯示澎湖、金門、連江入口，不必展開工具尋找離島。', '[data-tour-anchor=search]'],
-    ['讀圖例，再換圖層', '圖例常駐上方。使用「圖層與說明」切換指標；縮放、重設與離島入口也在頂列，地圖保留完整操作空間。', '[data-tour-anchor=map-controls]'],
-    ['展開詳情，保留觀察空間', '手機直向按「查看清單／詳情」後，地圖操作會暫時停用；收合詳情即可回到地圖。橫向會分欄。歷史卡片可各自展開，注意年份與選區範圍。', '[data-tour-anchor=panel]']
+    ['2022拉鋸選情地圖', '地圖顏色越深代表 2022 年兩大陣營票數越接近，適合觀察各區搖擺程度。此為四年前歷史紀錄，評估選情應考量現實狀態。', '#app-title'],
+    ['快速定位選區', '點擊地圖或使用搜尋功能，可快速查詢全臺各縣市、鄉鎮市區及候選人。', '[data-tour-anchor=search]'],
+    ['圖例與指標切換', '上方圖例可隨時查閱 2022 票差級距，並可切換不同選情指標或縮放地圖視野。', '[data-tour-anchor=map-controls]'],
+    ['選區詳情面板', '展開右側面板，可查看該行政區的歷屆政黨得票趨勢、候選人名單與基層板塊變化。', '[data-tour-anchor=panel]']
   ];
   const dialog = document.createElement('dialog');
   dialog.className = 'welcome-dialog'; dialog.setAttribute('aria-labelledby', 'welcome-title');
@@ -21,8 +21,8 @@
     for (const [action, text] of items) box.appendChild(node('button', text, {type:'button','data-action':action}));
     return box;
   }
-  dialog.append(node('h2','用地圖看懂自己的選區',{id:'welcome-title'}),
-    node('p','先選公職，再找地區。2026 顯示審定名冊與席次；歷史數據保留原年份，不是 2026 開票結果或預測。'),
+  dialog.append(node('h2','看懂 2022 縣市長拉鋸地圖',{id:'welcome-title'}),
+    node('p','透過 2022 年票差與歷屆得票走勢，協助觀察哪些選區較具搖擺特性。數據屬於四年前的歷史資料，評估最新選情時建議結合現實局勢綜合考量。'),
     actions([['skip','直接開始'],['tour','看 4 步操作']]));
   const coach = document.createElement('section');
   coach.className = 'tour-coach'; coach.hidden = true; coach.setAttribute('aria-label', '操作導覽');

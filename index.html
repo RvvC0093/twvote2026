@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="election-viewer-release" content="v87">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'">
-  <title>台灣縣市長選舉：2022拉鋸地圖 → 2026拉票地圖</title>
+  <title>2022台灣縣市長選舉拉鋸地圖</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <meta property="og:title" content="台灣縣市長選舉：2022拉鋸地圖 → 2026拉票地圖">
-  <meta property="og:description" content="以 2022 縣市長歷史票差與歷屆趨勢，觀察 2026 縣市長候選人及各行政區選情。歷史結果不是預測。">
+  <meta property="og:title" content="2022台灣縣市長選舉拉鋸地圖">
+  <meta property="og:description" content="整理 2022 年（四年前）縣市長開票差距，觀察全臺各區板塊與搖擺特性。歷史數據供最新選情評估之重要參考。">
   <meta property="og:image" content="og.png">
   <link rel="stylesheet" href="style.css?release=v87">
   <script src="product_profile.js?release=v87" defer></script>
@@ -22,11 +22,11 @@
   <script src="app.js?release=v87" defer></script>
 </head>
 <body data-map-theme="dark" class="observation-stage-active">
-  <noscript><link rel="stylesheet" href="noscript.css?release=v87"><section class="noscript-message"><h1>台灣縣市長選舉：2022拉鋸地圖 → 2026拉票地圖</h1><p>互動地圖、選區搜尋與資料面板需要 JavaScript。請在瀏覽器允許 JavaScript 後重新載入本頁。</p></section></noscript>
+  <noscript><link rel="stylesheet" href="noscript.css?release=v87"><section class="noscript-message"><h1>2022台灣縣市長選舉拉鋸地圖</h1><p>互動地圖、選區搜尋與資料面板需要 JavaScript。請在瀏覽器允許 JavaScript 後重新載入本頁。</p></section></noscript>
   <header class="topbar">
     <div class="topbar-brand">
-      <h1 id="app-title">台灣縣市長選舉：2022拉鋸地圖 → 2026拉票地圖</h1>
-      <span id="observation-meta" class="meta-pill" role="status" aria-live="polite">審定名冊（公告 2026-10-16）</span>
+      <h1 id="app-title">2022台灣縣市長選舉拉鋸地圖</h1>
+      <span id="observation-meta" class="meta-pill" role="status" aria-live="polite">候選人名單基準：中選會 2026-10-16 審定公告</span>
     </div>
 
     <!-- segmented control: 縣市長 ｜ 議員 -->
@@ -61,7 +61,7 @@
             <div id="observation-filter-bar" class="observation-filter-bar" aria-label="選情圖層篩選"></div>
           </div>
 
-          <p id="observation-map-status" class="observation-map-status" role="status">正在整理本地行政區圖資…</p>
+          <p id="observation-map-status" class="observation-map-status" role="status">正在載入行政區圖資…</p>
 
           <div class="observation-map-wrap">
             <canvas id="observation-map" tabindex="0" aria-label="選前行政區定位地圖"></canvas>
@@ -84,11 +84,11 @@
 
           <!-- 地圖單色階圖例 -->
           <div class="swing-legend" id="map-legend-bar" aria-label="選情指標圖例">
-            <span class="swing-legend-item"><span class="swing-indicator legend-tone-4" aria-hidden="true"></span> 核心激戰 / 極接近 (≤1%)</span>
-            <span class="swing-legend-item"><span class="swing-indicator legend-tone-3" aria-hidden="true"></span> 傳統激戰 / 接近 (≤3%)</span>
-            <span class="swing-legend-item"><span class="swing-indicator legend-tone-2" aria-hidden="true"></span> 一般搖擺 / 普通 (≤6%)</span>
-            <span class="swing-legend-item"><span class="swing-indicator legend-tone-1" aria-hidden="true"></span> 穩定領先 / 寬鬆 (>6%)</span>
-            <span class="swing-legend-item"><span class="swing-indicator legend-tone-stripe" aria-hidden="true"></span> 邊界新劃 / 無對照</span>
+            <span class="swing-legend-item"><span class="swing-indicator legend-tone-4" aria-hidden="true"></span> 極度膠著 (≤1%)</span>
+            <span class="swing-legend-item"><span class="swing-indicator legend-tone-3" aria-hidden="true"></span> 激戰拉鋸 (≤3%)</span>
+            <span class="swing-legend-item"><span class="swing-indicator legend-tone-2" aria-hidden="true"></span> 搖擺選區 (≤6%)</span>
+            <span class="swing-legend-item"><span class="swing-indicator legend-tone-1" aria-hidden="true"></span> 相對優勢 (>6%)</span>
+            <span class="swing-legend-item"><span class="swing-indicator legend-tone-stripe" aria-hidden="true"></span> 歷屆邊界異動</span>
           </div>
         </section>
 
@@ -127,20 +127,20 @@
       <dialog id="limitations-modal" class="limitations-modal">
         <div class="limitations-card">
           <div class="limitations-header">
-            <h2>資料來源與限制揭露</h2>
+            <h2>資料來源與說明</h2>
             <button type="button" id="close-limitations-btn" class="close-btn" aria-label="關閉說明">✕</button>
           </div>
           <div class="limitations-body">
             <ol class="limitations-list">
-              <li><strong>審定名冊基準：</strong>本系統收錄中選會 2026-10-16 公告審定通過之直轄市長與縣市長名冊；本版本專注縣市長選舉。</li>
-              <li><strong>行政區定位：</strong>採用 2025 年行政區邊界呈現縣市、鄉鎮市區及村里；鄉鎮與村里數值均指縣市長選舉的地方開票結果。</li>
-              <li><strong>催票率定義：</strong>催票率為「得票數 ÷ 選舉人數」，呈現候選人從整體公民中獲取實質支持之動員比例；此指標受投票率影響，不等同傳統開票得票率。</li>
-              <li hidden data-feature="council"><strong>議員末席差距指標：</strong>計算 2022 年同選區最後一位當選人（以 `*` 正式席次為準）與第一位落選者之票數差額 ÷ 該選區有效票總數（%）；議員層不計算第一名勝差或拉鋸度。</li>
-              <li hidden data-feature="council"><strong>婦女保障名額處理：</strong>婦保當選者（標記 `!`）依公職選罷法逕行錄取，其得票可能低於落選頭，因此不納入最後常態席次票數差距計算，避免失真低估實質競爭強度。</li>
-              <li hidden data-feature="council"><strong>席次搖擺度計算：</strong>以 2014、2018、2022 連續三屆議員選舉為基準，計算主要政黨席次淨變更數相對於該選區總應選席次之變動比例。</li>
-              <li hidden data-feature="council"><strong>選區邊界重劃標記：</strong>歷屆選區範圍若有鄉鎮整併或調整，標記為 `新劃選區`，不進行跨屆歷史比較以避免誤導。</li>
-              <li><strong>年份與用途：</strong>2022 拉鋸地圖呈現歷史票差；2026 拉票地圖提供候選人與地方觀察脈絡，不是即時開票、民調或勝選預測。</li>
-              <li><strong>候選人政黨推薦：</strong>候選人政黨標示依中選會公告之登記政黨呈現，不代表各政黨之最終競選同盟或配票策略。</li>
+              <li><strong>候選人名冊：</strong>收錄中央選舉委員會 2026-10-16 審定公告之直轄市長與縣市長名冊。</li>
+              <li><strong>行政區地圖：</strong>採用 2025 年內政部行政區界圖資；鄉鎮市區與村里數據皆對應縣市長選舉在該地的開票成績。</li>
+              <li><strong>催票率指標：</strong>計算公式為「得票數 ÷ 選舉人總數」，反映候選人在整體合格公民中的實質動員強度，較不易受單屆投票率高低偏差影響。</li>
+              <li hidden data-feature="council"><strong>議員末席差距指標：</strong>計算 2022 年同選區最後一位常態當選席次與第一位落選者之票數差額 ÷ 該選區有效票總數（%）。</li>
+              <li hidden data-feature="council"><strong>婦女保障名額處理：</strong>婦保當選者（標記 `!`）依公職選罷法逕行錄取，得票可能低於落選頭，不納入常態席次票數差距計算。</li>
+              <li hidden data-feature="council"><strong>席次搖擺度：</strong>以 2014、2018、2022 連續三屆議員選舉為基準，計算主要政黨席次淨變動相對於總應選席次之比例。</li>
+              <li hidden data-feature="council"><strong>選區範圍異動：</strong>歷屆選區若有鄉鎮整併或邊界調整，標記為 `新劃選區`，不進行跨屆歷史比較。</li>
+              <li><strong>選情評估參考：</strong>本站整理 2022 年（四年前）及歷屆開票數據，協助觀察各區政治板塊與搖擺特性。評估最新選情時，仍應結合當前政治氛圍、候選人特質等現實狀態進行綜合判斷。</li>
+              <li><strong>政黨推薦標示：</strong>候選人政黨一律依中選會登記公告呈現，不涉各政黨後續競選結盟或配票策略。</li>
             </ol>
           </div>
         </div>
@@ -157,13 +157,13 @@
         <button type="button" data-search-close aria-label="關閉搜尋">關閉</button>
       </div>
       <label class="search-kind">尋找<select id="search-kind"><option value="places">地區與選區</option><option value="candidates">候選人</option></select></label>
-      <p class="search-coverage" role="status">全國行政區與已收錄候選人；部分原始姓名無法辨識，請以選區名冊核對。</p>
+      <p class="search-coverage" role="status">支援全國行政區、選區與候選人搜尋。</p>
       <div id="spotlight-results" class="spotlight-results" role="listbox"></div>
     </div>
   </dialog>
 
   <footer class="footer">
-    <p>2026 臺灣地方公職人員選舉觀察 · 依中選會 2026-10-16 審定名冊與歷屆投開票資料如實呈現</p>
+    <p>2026 臺灣地方公職人員選舉觀察 · 資料來源：中央選舉委員會歷屆投開票數據及候選人登記名冊</p>
   </footer>
 </body>
 </html>
